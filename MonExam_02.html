@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>建造师范工第二次月考 - 在线答题系统</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  :root {
+    --bg-primary: #0f1117;
+    --bg-secondary: #1a1d27;
+    --bg-card: #1e2130;
+    --bg-hover: #252840;
+    --border: #2e3250;
+    --text-primary: #e8eaf6;
+    --text-secondary: #9ca3af;
+    --text-muted: #6b7280;
+    --accent: #6366f1;
+    --accent-hover: #818cf8;
+    --accent-light: rgba(99,102,241,0.15);
+    --success: #22c55e;
+    --success-light: rgba(34,197,94,0.15);
+    --danger: #ef4444;
+    --danger-light: rgba(239,68,68,0.15);
+    --warning: #f59e0b;
+    --warning-light: rgba(245,158,11,0.15);
+    --multi-color: #a78bfa;
+    --multi-light: rgba(167,139,250,0.15);
+  }
+
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ===== TOP BAR ===== */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    height: auto;
+    min-height: 56px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap;
+    padding: 6px 20px;
+    z-index: 100;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .topbar-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+
+  .timer-display {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-family: 'Courier New', monospace;
+    font-size: 16px; font-weight: 700;
+    color: var(--accent-hover);
+    min-width: 90px; text-align: center;
+  }
+  .timer-display.paused { color: var(--warning); border-color: var(--warning); }
+
+  .btn {
+    padding: 7px 16px; border-radius: 8px; border: none; cursor: pointer;
+    font-size: 13px; font-weight: 600; transition: all 0.2s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-secondary {
+    background: var(--bg-card); color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-success { background: var(--success); color: white; }
+  .btn-success:hover { background: #16a34a; }
+  .btn-warning { background: var(--warning); color: #1a1a1a; }
+  .btn-warning:hover { background: #d97706; }
+
+  /* ===== MAIN LAYOUT ===== */
+  .main-wrapper { padding-top: 56px; min-height: 100vh; }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    width: 220px; min-height: calc(100vh - 56px);
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 56px; left: 0; bottom: 0;
+    overflow-y: auto; padding: 16px 12px;
+    transition: transform 0.3s;
+  }
+  .sidebar-section { margin-bottom: 16px; }
+  .sidebar-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    color: var(--text-muted); letter-spacing: 1px;
+    padding: 0 4px; margin-bottom: 8px;
+  }
+  .q-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+  .q-dot {
+    width: 30px; height: 30px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    background: var(--bg-card); color: var(--text-muted);
+    border: 1px solid var(--border); transition: all 0.15s;
+  }
+  .q-dot:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .q-dot.answered { background: var(--accent-light); color: var(--accent-hover); border-color: var(--accent); }
+  .q-dot.current { background: var(--accent); color: white; border-color: var(--accent); }
+  .q-dot.correct { background: var(--success-light); color: var(--success); border-color: var(--success); }
+  .q-dot.wrong { background: var(--danger-light); color: var(--danger); border-color: var(--danger); }
+  .q-dot.partial { background: var(--warning-light); color: var(--warning); border-color: var(--warning); }
+
+  /* ===== CONTENT AREA ===== */
+  .content { margin-left: 220px; flex: 1; padding: 24px; max-width: 860px; }
+
+  /* ===== PROGRESS ===== */
+  .progress-bar-wrap {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 10px; height: 6px; margin-bottom: 20px; overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--multi-color));
+    border-radius: 10px; transition: width 0.4s ease;
+  }
+  .progress-text {
+    font-size: 12px; color: var(--text-muted);
+    margin-bottom: 8px;
+    display: flex; justify-content: space-between;
+  }
+
+  /* ===== QUESTION CARD ===== */
+  .question-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 28px; margin-bottom: 20px;
+  }
+  .question-meta {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+  }
+  .q-number {
+    background: var(--accent); color: white;
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; flex-shrink: 0;
+  }
+  .q-type-badge {
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 12px; font-weight: 600;
+  }
+  .q-type-badge.single {
+    background: var(--accent-light); color: var(--accent-hover);
+  }
+  .q-type-badge.multi {
+    background: var(--multi-light); color: var(--multi-color);
+  }
+  .q-score-badge {
+    margin-left: auto;
+    font-size: 12px; color: var(--text-muted);
+  }
+  .question-text {
+    font-size: 16px; line-height: 1.8; color: var(--text-primary);
+    margin-bottom: 20px;
+  }
+
+  /* ===== OPTIONS ===== */
+  .options-list { display: flex; flex-direction: column; gap: 10px; }
+  .option-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px; border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: var(--bg-secondary);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .option-item:hover { border-color: var(--accent); background: var(--accent-light); }
+  .option-item.selected {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  .option-item.correct-answer {
+    border-color: var(--success) !important;
+    background: var(--success-light) !important;
+  }
+  .option-item.wrong-answer {
+    border-color: var(--danger) !important;
+    background: var(--danger-light) !important;
+  }
+  .option-item.missed-answer {
+    border-color: var(--warning) !important;
+    background: var(--warning-light) !important;
+  }
+  .option-letter {
+    width: 26px; height: 26px; border-radius: 6px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+    background: var(--bg-card); color: var(--text-secondary);
+    border: 1px solid var(--border);
+    transition: all 0.15s;
+  }
+  .option-item.selected .option-letter {
+    background: var(--accent); color: white; border-color: var(--accent);
+  }
+  .option-item.correct-answer .option-letter {
+    background: var(--success); color: white; border-color: var(--success);
+  }
+  .option-item.wrong-answer .option-letter {
+    background: var(--danger); color: white; border-color: var(--danger);
+  }
+  .option-item.missed-answer .option-letter {
+    background: var(--warning); color: #1a1a1a; border-color: var(--warning);
+  }
+  .option-text { font-size: 14px; line-height: 1.6; color: var(--text-primary); }
+
+  /* ===== NAV BUTTONS ===== */
+  .nav-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-top: 8px;
+  }
+  .nav-center { display: flex; gap: 8px; }
+
+  /* ===== ANALYSIS BOX ===== */
+  .analysis-box {
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; margin-top: 16px;
+    font-size: 14px; line-height: 1.8; color: var(--text-secondary);
+  }
+  .analysis-box.show { display: block; }
+  .analysis-header {
+    font-size: 13px; font-weight: 700; color: var(--accent-hover);
+    margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+  }
+  .answer-line {
+    font-size: 14px; font-weight: 700; margin-bottom: 8px;
+  }
+  .answer-line .ans-correct { color: var(--success); }
+  .answer-line .ans-your { margin-left: 16px; }
+  .answer-line .ans-right { color: var(--success); }
+  .answer-line .ans-wrong { color: var(--danger); }
+  .answer-line .ans-partial { color: var(--warning); }
+
+  /* ===== RESULT PAGE ===== */
+  .result-page {
+    display: none;
+    padding: 24px;
+    margin-left: 220px;
+    max-width: 860px;
+  }
+  .result-header {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 32px; text-align: center; margin-bottom: 24px;
+  }
+  .result-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+  .result-score {
+    font-size: 64px; font-weight: 900; line-height: 1.1;
+    background: linear-gradient(135deg, var(--accent), var(--multi-color));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .result-total { font-size: 18px; color: var(--text-muted); margin-bottom: 24px; }
+  .result-stats {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    margin-top: 20px;
+  }
+  .stat-card {
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; text-align: center;
+  }
+  .stat-num { font-size: 28px; font-weight: 700; }
+  .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .stat-card.green .stat-num { color: var(--success); }
+  .stat-card.red .stat-num { color: var(--danger); }
+  .stat-card.yellow .stat-num { color: var(--warning); }
+  .stat-card.blue .stat-num { color: var(--accent-hover); }
+
+  .result-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+
+  /* ===== ERROR LIST ===== */
+  .error-section {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 24px; margin-bottom: 20px;
+  }
+  .error-section-title {
+    font-size: 16px; font-weight: 700; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid var(--border); padding-bottom: 12px;
+  }
+  .error-item { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .error-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .error-q-header {
+    display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px;
+  }
+  .error-q-num {
+    background: var(--danger-light); color: var(--danger);
+    border: 1px solid var(--danger);
+    width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+  }
+  .error-q-text { font-size: 14px; line-height: 1.7; }
+  .error-options { margin: 8px 0 8px 38px; }
+  .error-opt {
+    font-size: 13px; padding: 4px 0; color: var(--text-secondary);
+    display: flex; gap: 8px;
+  }
+  .error-opt.is-correct { color: var(--success); font-weight: 600; }
+  .error-opt.was-selected { color: var(--danger); }
+  .error-analysis {
+    margin-left: 38px; margin-top: 8px;
+    font-size: 13px; line-height: 1.7; color: var(--text-secondary);
+    background: var(--bg-secondary); border-radius: 8px; padding: 10px 12px;
+    border-left: 3px solid var(--accent);
+  }
+  .partial-badge {
+    display: inline-block; padding: 2px 8px;
+    background: var(--warning-light); color: var(--warning);
+    border-radius: 4px; font-size: 11px; font-weight: 600;
+    margin-left: 8px;
+  }
+
+  /* ===== PAUSE OVERLAY ===== */
+  .pause-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85); z-index: 500;
+    align-items: center; justify-content: center;
+  }
+  .pause-overlay.active { display: flex; }
+  .pause-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 40px; text-align: center; max-width: 340px;
+  }
+  .pause-icon { font-size: 48px; margin-bottom: 16px; }
+  .pause-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  .pause-sub { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; }
+
+  /* ===== RESUME BANNER ===== */
+  .resume-banner {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85); z-index: 600;
+    align-items: center; justify-content: center;
+  }
+  .resume-banner.active { display: flex; }
+  .resume-card {
+    background: var(--bg-card); border: 1px solid var(--accent);
+    border-radius: 16px; padding: 36px; text-align: center; max-width: 380px;
+  }
+  .resume-icon { font-size: 44px; margin-bottom: 12px; }
+  .resume-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .resume-info { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.8; }
+  .resume-btns { display: flex; gap: 10px; justify-content: center; }
+
+  /* ===== REDO MODE BANNER ===== */
+  .redo-banner {
+    background: linear-gradient(135deg, var(--multi-light), var(--accent-light));
+    border: 1px solid var(--multi-color);
+    border-radius: 10px; padding: 12px 16px;
+    margin-bottom: 16px; display: none;
+    font-size: 13px; color: var(--multi-color);
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  /* ===== SCROLLBAR ===== */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg-primary); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+  /* ===== TOOLTIP ===== */
+  .tooltip { position: relative; }
+  .tooltip-text {
+    visibility: hidden; background: #333; color: #fff;
+    text-align: center; border-radius: 6px; padding: 5px 10px;
+    position: absolute; z-index: 1; bottom: 125%; left: 50%;
+    transform: translateX(-50%); white-space: nowrap;
+    font-size: 11px;
+  }
+  .tooltip:hover .tooltip-text { visibility: visible; }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .content, .result-page { margin-left: 0; padding: 16px 12px; }
+
+    /* === TOPBAR: 两行布局（尺寸放大） === */
+    .topbar {
+      height: auto !important;
+      flex-wrap: wrap;
+      padding: 10px 12px 6px;
+      gap: 4px;
+    }
+    .topbar-left {
+      width: 100%; justify-content: center;
+      padding-bottom: 6px; gap: 8px;
+    }
+    .topbar-left svg { width: 24px; height: 24px; flex-shrink: 0; }
+    .topbar-title span:first-child { font-size: 15px; }
+    .topbar-title span:last-child { font-size: 11px; }
+    .topbar-right {
+      width: 100%;
+      justify-content: center;
+      gap: 10px;
+      padding-bottom: 4px;
+    }
+    .topbar-right .timer-display {
+      padding: 5px 10px;
+      font-size: 14px;
+      min-width: 80px;
+      flex-shrink: 0;
+    }
+    .topbar-right .btn {
+      padding: 6px 12px;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    /* === MOBILE QUESTION NAV === */
+    .mobile-nav-bar {
+      display: block !important;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-bottom: 14px;
+    }
+    .mobile-nav-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .mobile-nav-toggle {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 10px;
+      color: var(--text-primary);
+      font-size: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .mobile-nav-info {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .mobile-nav-info strong { color: var(--accent-hover); }
+    .mobile-nav-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 3px;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 6px;
+      display: none;
+    }
+    .mobile-nav-grid.show { display: grid; }
+    .mobile-nav-dot {
+      aspect-ratio: 1;
+      border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 600; cursor: pointer;
+      background: var(--bg-secondary); color: var(--text-muted);
+      border: 1px solid var(--border); transition: all 0.1s;
+    }
+    .mobile-nav-dot.answered { background: var(--accent-light); color: var(--accent-hover); border-color: var(--accent); }
+    .mobile-nav-dot.current { background: var(--accent); color: white; border-color: var(--accent); }
+    .mobile-nav-dot.correct { background: var(--success-light); color: var(--success); border-color: var(--success); }
+    .mobile-nav-dot.wrong { background: var(--danger-light); color: var(--danger); border-color: var(--danger); }
+    .mobile-nav-dot.partial { background: var(--warning-light); color: var(--warning); border-color: var(--warning); }
+
+    /* === PROGRESS === */
+    .progress-text { font-size: 11px; }
+    .progress-bar-wrap { margin-bottom: 12px; }
+
+    /* === QUESTION CARD: 紧凑 === */
+    .question-card { padding: 16px 14px; margin-bottom: 12px; border-radius: 10px; }
+    .question-meta { gap: 6px; margin-bottom: 10px; }
+    .q-number { width: 26px; height: 26px; font-size: 12px; border-radius: 6px; }
+    .q-type-badge { padding: 2px 6px; font-size: 10px; }
+    .q-score-badge { font-size: 10px; }
+    .question-text { font-size: 14px; line-height: 1.7; margin-bottom: 10px; }
+
+    /* === OPTIONS: 紧凑 === */
+    .options-list { gap: 6px; }
+    .option-item { padding: 9px 10px; gap: 8px; border-radius: 8px; }
+    .option-letter { width: 22px; height: 22px; font-size: 11px; border-radius: 5px; }
+    .option-text { font-size: 13px; line-height: 1.5; }
+
+    /* === NAV BUTTONS === */
+    .nav-row { gap: 6px; }
+    .nav-row .btn { padding: 7px 10px; font-size: 12px; }
+
+    /* === RESULT PAGE === */
+    .result-header { padding: 20px 16px; }
+    .result-score { font-size: 48px; }
+    .result-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .stat-num { font-size: 22px; }
+    .stat-label { font-size: 11px; }
+    .result-actions { gap: 6px; }
+    .result-actions .btn { padding: 7px 10px; font-size: 12px; }
+
+    /* === ANALYSIS BOX === */
+    .analysis-box { padding: 12px; font-size: 13px; margin-top: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar" id="topBar">
+  <div class="topbar-left">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="rgba(99,102,241,0.2)"/>
+      <path d="M2 17L12 22L22 17" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M2 12L12 17L22 12" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div class="topbar-title" style="display:flex;flex-direction:column;line-height:1.3;">
+      <span>2026一级建造师</span>
+      <span style="font-size:12px;color:var(--text-secondary);font-weight:500;">管理科目第二次月考</span>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="timer-display" id="timerDisplay">00:00:00</div>
+    <button class="btn btn-secondary" id="pauseBtn" onclick="togglePause()">⏸ 暂停</button>
+    <button class="btn btn-primary" id="submitBtn" onclick="confirmSubmit()" style="display:none;">提交试卷</button>
+  </div>
+</div>
+
+<!-- PAUSE OVERLAY -->
+<div class="pause-overlay" id="pauseOverlay">
+  <div class="pause-card">
+    <div class="pause-icon">⏸️</div>
+    <div class="pause-title">已暂停</div>
+    <div class="pause-sub">计时已停止，题目内容已遮挡</div>
+    <button class="btn btn-primary" style="width:100%;" onclick="togglePause()">▶ 继续答题</button>
+  </div>
+</div>
+
+<!-- RESUME BANNER -->
+<div class="resume-banner" id="resumeBanner">
+  <div class="resume-card">
+    <div class="resume-icon">💾</div>
+    <div class="resume-title">发现上次答题进度</div>
+    <div class="resume-info" id="resumeInfo"></div>
+    <div class="resume-btns">
+      <button class="btn btn-primary" onclick="resumeProgress()">继续作答</button>
+      <button class="btn btn-secondary" onclick="startFresh()">重新开始</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN WRAPPER -->
+<div class="main-wrapper">
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">单项选择 (1-70)</div>
+      <div class="q-grid" id="singleGrid"></div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">多项选择 (71-100)</div>
+      <div class="q-grid" id="multiGrid"></div>
+    </div>
+  </div>
+
+  <!-- CONTENT AREA -->
+  <div class="content" id="contentArea">
+    <!-- Progress -->
+    <div class="progress-text" id="progressText">
+      <span>第 <strong id="currentNum">1</strong> / 100 题</span>
+      <span id="answeredCount">已作答 0 题</span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+    </div>
+
+    <!-- Mobile Question Nav (only visible on small screens) -->
+    <div class="mobile-nav-bar" style="display:none;">
+      <div class="mobile-nav-header">
+        <span class="mobile-nav-info">已作答 <strong id="mobileAnswered">0</strong> / 100 题</span>
+        <button class="mobile-nav-toggle" onclick="toggleMobileNav()">📋 题目导航 ▼</button>
+      </div>
+      <div class="mobile-nav-grid" id="mobileNavGrid"></div>
+    </div>
+
+    <!-- Redo Banner -->
+    <div class="redo-banner" id="redoBanner">
+      🔁 <strong>错题重做模式</strong> — 共 <span id="redoCount">0</span> 道错题
+    </div>
+
+    <!-- Question Card -->
+    <div class="question-card" id="questionCard">
+      <div class="question-meta">
+        <div class="q-number" id="qNum">1</div>
+        <div class="q-type-badge" id="qTypeBadge">单选题</div>
+        <div class="q-score-badge" id="qScoreBadge">1分</div>
+      </div>
+      <div class="question-text" id="questionText"></div>
+      <div class="options-list" id="optionsList"></div>
+      <div class="analysis-box" id="analysisBox" style="display:none;">
+        <div class="analysis-header">📖 解析</div>
+        <div class="answer-line" id="answerLine"></div>
+        <div id="analysisText"></div>
+      </div>
+    </div>
+
+    <!-- NAV BUTTONS -->
+    <div class="nav-row">
+      <button class="btn btn-secondary" id="prevBtn" onclick="if(!this.disabled)prevQuestion()">← 上一题</button>
+      <div class="nav-center">
+        <button class="btn btn-secondary" onclick="toggleAnalysis()" id="showAnalysisBtn" style="display:none;">💡 查看解析</button>
+      </div>
+      <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()">下一题 →</button>
+    </div>
+  </div>
+
+  <!-- RESULT PAGE -->
+  <div class="result-page" id="resultPage">
+    <div class="result-header">
+      <div class="result-title">🏆 答题完成！</div>
+      <div class="result-score" id="resultScore">0</div>
+      <div class="result-total">/ 130 分</div>
+      <div style="font-size:14px; color:var(--text-muted);" id="timeUsed"></div>
+      <div class="result-stats">
+        <div class="stat-card green">
+          <div class="stat-num" id="stat-correct">0</div>
+          <div class="stat-label">答对</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-num" id="stat-wrong">0</div>
+          <div class="stat-label">答错</div>
+        </div>
+        <div class="stat-card yellow">
+          <div class="stat-num" id="stat-partial">0</div>
+          <div class="stat-label">少选得分</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-num" id="stat-unanswered">0</div>
+          <div class="stat-label">未作答</div>
+        </div>
+      </div>
+      <div class="result-actions">
+        <button class="btn btn-danger" onclick="showErrorAnalysis()">📋 查看错题解析</button>
+        <button class="btn btn-warning" onclick="startRedoMode()">🔁 错题重做</button>
+        <button class="btn btn-secondary" onclick="restartAll()">🔄 重新开始</button>
+      </div>
+    </div>
+
+    <!-- Error Analysis -->
+    <div id="errorAnalysisSection" style="display:none;">
+      <div class="error-section">
+        <div class="error-section-title">
+          ❌ 错题解析
+          <span style="font-size:13px; color:var(--text-muted); font-weight:400;" id="errorCountLabel"></span>
+        </div>
+        <div id="errorList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const ALL_QUESTIONS = [{"num": 1, "type": "single", "question": "下列（）情形不得认定为投资项目资本金。", "options": {"A": "资金在会计上分类为权益工具", "B": "存在本息回购承诺", "C": "通过政府专项债券筹集", "D": "地方各级政府及有关部门可统筹使用的本级预算资金"}, "answer": ["B"], "analysis": "存在下列情形之一的，不得认定为投资项目资本金:(1)存在 本息回购承诺、兜底保障等收益附加条件;(2)当期债务性资金偿还前，可以分红 或取得收益;(3)在清算时受偿顺序优先于其他债务性资金。 地方各级政府及其有关部门可统筹使用本级预算资金、上级补助资金等各类 财政资金筹集项目资本金，可按有关规定将政府专项债券作为符合条件的重大项 目资本金。"}, {"num": 2, "type": "single", "question": "在项目建设准备阶段形成的工程造价是（）。", "options": {"A": "合同价", "B": "设计概算", "C": "施工图预算", "D": "投资估算"}, "answer": ["A"], "analysis": "投资决策阶段为投资估算；初步设计为设计概算；建设准 备为合同价。"}, {"num": 3, "type": "single", "question": "总监理工程师签发工程暂停令的情形不包括（）。", "options": {"A": "施工存在质量、安全事故隐患", "B": "施工单位未经批准擅自施工或拒绝项目监理机构管理的", "C": "施工单位未按审查通过的工程设计文件施工的", "D": "建设单位要求暂停施工且工程需要暂停施工的"}, "answer": ["A"], "analysis": "工程施工有下列情形之一，总监理工程师将会及时签发工 程暂停令： (1)建设单位要求暂停施工且工程需要暂停施工的； (2)施工单位未经批准擅自施工或拒绝项目监理机构管理的； (3)施工单位未按审查通过的工程设计文件施工的； (4)施工单位未按批准的施工组织设计、(专项)施工方案施工或违反工程建设 强制性标准的； (5)施工存在重大质量、安全事故隐患或发生质量、安全事故的。"}, {"num": 4, "type": "single", "question": "在建设工程施工准备阶段，项目监理机构需要进行的工作是（）。", "options": {"A": "主持召开第一次工地会议", "B": "主持召开图纸会审和设计交底会议", "C": "检查安全生产管理组织机构和规章制度建立情况", "D": "组织建立工程项目质量安全管理体系"}, "answer": ["C"], "analysis": "A、B 错误，建设单位主持召开图纸会审和设计交底会议， 建设单位主持召开第一次工地会议。C 正确、D错误，项目监理机构将会检查施 工单位现场的施工质量、安全生产管理组织机构和规章制度建立情况以及专职管 理人员配备和特种作业人员的资格，还要核查施工机械和设施的安全许可验收手 续。"}, {"num": 5, "type": "single", "question": "ROT模式与T0T模式的主要区别在于（）。", "options": {"A": "ROT需要改扩建既有项目", "B": "ROT无需移交项目", "C": "ROT的特许期更长", "D": "ROT仅适用于新建项目"}, "answer": ["A"], "analysis": "R0T模式中社会资本方需负责改扩建，而T0T仅涉及经营权 转移。"}, {"num": 6, "type": "single", "question": "采用联合体方式承包工程时，对联合体各成员单位正确的要求是（）。", "options": {"A": "共同与建设单位签订工程承包合同", "B": "需要具有与工程规模相适应的相同承包资质", "C": "承担相同的工程承包合同义务和责任", "D": "共同与建设单位签订联合体协议"}, "answer": ["A"], "analysis": "联合体通常由一家或几家单位发起，经过协商确定各自承 担的义务和责任，签署联合体协议，建立联合体组织机构，产生联合体牵头单位 (代表)，联合体各成员单位共同与建设单位签订施工合同。联合体协议是承包单 位内部签署，建设单位不参与。"}, {"num": 7, "type": "single", "question": "循证决策是建立在（）的基础上的。", "options": {"A": "数据和信息分析", "B": "理念和经验分析", "C": "预算和过程分析", "D": "筛选和经验分析"}, "answer": ["A"], "analysis": "循证决策。基于数据和信息的分析和评价的决策，更有 可能产生期望的结果。"}, {"num": 8, "type": "single", "question": "卓越绩效模式强调以系统的思维来管理整个组织及关键过程，这种系统管\n理的基本方法是（ ）。", "options": {"A": "反馈方法", "B": "过程方法", "C": "评价方法", "D": "监督方法"}, "answer": ["B"], "analysis": "卓越绩效模式强调以系统的思维来管理整个企业，系统思 维反映的是企业管理的整体性、一致性和协调性。过程方法是系统管理的基本方 法。"}, {"num": 9, "type": "single", "question": "下列关于项目群与项目组合管理的说法，正确的是（ ）。", "options": {"A": "项目组合是指为实现组织的战略目标、经营目标和收益提供优势，而被协调管理的一组相关项目群组件所形成的临时结构", "B": "一个项目群应至少由一个项目群组件组成", "C": "项目群组件是指组成项目群的项目、子项目群或其他相关工作", "D": "组成项目群的项目群组件不一定存在相互依存和相互关联的关系"}, "answer": ["C"], "analysis": "本题考查的是项目群和项目组合管理。A 选项错误，项 目群是指为实现组织的战略目标、经营目标和收益提供优势，而被协调管理的一 组相关项目群组件所形成的临时结构。项目组合是指为实现组织的整体或部分战 略目标，便于进行有效管理而组合在一起的项目、项目群及其他相关工作。B 选 项错误，C 选项正确，项目群组件是指组成项目群的项目、子项目群或其他相关 工作。一个项目群应至少由两个项目群组件组成。D 选项错误，项目群由具有 相互依存和相互关联的项目群组件构成。 10.A.【弘文解析】社会责任原则：(1)担责；(2)透明；(3)合乎道德的行为；(4) 尊重利益相关方利益；(5)尊重法治；(6)尊重国际行为规范；(7)尊重人权。"}, {"num": 10, "type": "single", "question": "下列选项中哪个不属于社会责任原则（）。", "options": {"A": "社会投资", "B": "尊重利益相关方利益", "C": "尊重人权", "D": "合乎道德的行为"}, "answer": ["A"], "analysis": "社会责任原则：(1)担责；(2)透明；(3)合乎道德的行为；(4) 尊重利益相关方利益；(5)尊重法治；(6)尊重国际行为规范；(7)尊重人权。"}, {"num": 11, "type": "single", "question": "下列关于风险管理过程说法错误的是（）。", "options": {"A": "范围、环境和准则应系统地、循环地、协作性地开展，并充分考虑利益相关者的观点", "B": "风险应对的目的是选择和实施风险处理方案", "C": "监督和检查的目的是确保和提升风险管理过程设计、实施和结果的质量和成效", "D": "报告是组织治理中不可或缺的一部分可提升与利益相关者的沟通质量"}, "answer": ["A"], "analysis": "风险评估应系统地、循环地、协作性地开展，并充分考 虑利益相关者的观点"}, {"num": 12, "type": "single", "question": "国际项目管理协会的能力基准中不属于个人能力的是（）。", "options": {"A": "环境能力", "B": "行为能力", "C": "技术能力", "D": "人员能力"}, "answer": ["D"], "analysis": "国际项目管理协会的能力基准：个人能力（环境能力、 行为能力、技术能力）；组织能力（治理、管理、组织一致性、资源、人员能力）。"}, {"num": 13, "type": "single", "question": "施工招标准备工作不包括（）。", "options": {"A": "编制资格预审文件", "B": "组建招标组织", "C": "办理招标申请手续", "D": "发布招标公告"}, "answer": ["D"], "analysis": "本题考查的是施工招标准备工作内容。施工招标准备工 作主要包括：组建招标组织、办理招标申请手续、进行招标策划、编制资格预审 文件和招标文件等。"}, {"num": 14, "type": "single", "question": "根据《评标委员会和评标方法暂行规定》，下列关于评标委员会的说法\n中，错误的是（）。", "options": {"A": "评标委员会由招标单位代表及有关技术、经济等方面的专家组成", "B": "评标委员会中专家应为 5 人以上单数", "C": "评标委员会成员中，技术、经济等方面的专家不得少于成员总数的 2/3", "D": "评标委员会的专家成员可以由招标人直接确定"}, "answer": ["B"], "analysis": "评标委员会为5人以上单数，对于专家没有此要求，评标 委员会的专家成员应从依法组建的专家库中，采取随机抽取或者直接确定的方式 确定。对于一般项目，可以采取随机抽取的方式；对于技术复杂、专业性强或者 国家有特殊要求的招标项目，采取随机抽取方式确定的专家难以保证胜任的，可 以由招标人直接确定。"}, {"num": 15, "type": "single", "question": "施工评标过程中，发现投标报价大写金额与小写金额不一致时，评标委\n员会正确的处理办法是（ ）。", "options": {"A": "以小写金额为准修正投标报价并经投标人书面确认", "B": "以大写金额为准修正投标报价并经投标人书面确认", "C": "由投标人书面澄清，按大写或按小写来计算投标报价", "D": "将该投标文件直接作废标处理"}, "answer": ["B"], "analysis": "本题考查的是初步评审。已标价工程量清单有计算错误 的，总价金额与依据单价计算出的结果不一致时，以单价金额为准修正总价，单 价金额小数点有明显错误的除外；书写有错误的，投标文件中的大写金额与小写 金额不一致时，以大写金额为准。评标委员会对投标报价的错误予以修正后，需 请投标人书面确认，作为投标报价的金额。投标人不接受修正价格的，其投标作 废标处理。"}, {"num": 16, "type": "single", "question": "某工程施工评标中，有两家不同报价的投标单位综合评分相等时，根据\n《标准施工招标文件》，应将（ ）排名靠前。", "options": {"A": "投标报价低的单位", "B": "资质等级高的单位", "C": "施工组织设计得分高的单位", "D": "对招标人提出较多优惠条件的单位"}, "answer": ["A"], "analysis": "本题考查的是评标。综合评估法是指评标委员会对满足 招标文件实质性要求的投标文件，然后按得分由高到低顺序推荐中标候选人，或 根据招标人授权直接确定中标人。综合评分相等时，以投标报价低的优先；投标 报价也相等的，由招标人自行确定。"}, {"num": 17, "type": "single", "question": "单价合同大多适用于（ ）。", "options": {"A": "施工任务和发包范围明确，合同履行中不会出现较大设计变更的工程", "B": "工程规模较小、技术不太复杂的中小型工程", "C": "建设单位为缩短工程建设周期，初步设计完成后就进行招标的工程", "D": "紧急工程或灾后修复工程"}, "answer": ["C"], "analysis": "本题考查的是单价合同的适用范围。单价合同大多用于 工期长、技术复杂、实施过程中发生各种不可预见因素较多的大型工程，以及建 设单位为缩短工程建设周期，初步设计完成后就进行招标的工程。"}, {"num": 18, "type": "single", "question": "下列投标报价方法中，（ ）招标文件中的工程范围不明确，条款不清楚\n或不公正，或技术规范要求过于苛刻的工程。", "options": {"A": "不平衡报价法", "B": "多方案报价法", "C": "保本竞标法", "D": "突然降价法"}, "answer": ["B"], "analysis": "多方案报价法适用于招标文件中的工程范围不明确，条 款不清楚或不公正，或技术规范要求过于苛刻的工程。采用多方案报价法，可降 低投标风险，但投标工作量较大。"}, {"num": 19, "type": "single", "question": "根据《标准施工招标文件》，关于监理人职责的说法，正确是（ ）。", "options": {"A": "监理人发出的任何指示应视为已得到发包人的批准，但监理人无权免除或变更合同约定的发包人和承包人的权利、义务和责任", "B": "监理人的指示应盖有监理人授权的施工场地机构章，并由专业监理工程师签字", "C": "监理人应审查承包人报送的施工组织设计、（专项）施工方案，并对不满足合同要求的部分进行修改", "D": "监理人应按合同约定组织工程竣工验收，并签署竣工验收意见"}, "answer": ["A"], "analysis": "本题考查的是监理人职责。选项 B 错误，监理人应按合 同约定向承包人发出指示，监理人的指示应盖有监理人授权的施工场地机构章， 并由总监理工程师或总监理工程师按合同约定授权的监理人员签字。选项 C 错 误，监理人应审查承包人报送的施工组织设计、施工进度计划、（专项）施工方 案、质量管理体系、安全生产管理体系、环境保护措施等，批准或要求承包人对 不满足合同要求的部分进行修改。选项 D 错误，监理人应按合同约定组织工程 竣工预验收，参与由发包人组织的工程竣工验收，并签署竣工验收意见。"}, {"num": 20, "type": "single", "question": "作为预付款计算依据的合同价款应扣除合同总价不包含的（）", "options": {"A": "暂列金额", "B": "计日工价款", "C": "专业工程暂估价", "D": "总承包服务费"}, "answer": ["D"], "analysis": "作为预付款计算依据的合同价款应扣除合同总价所包含 的暂列金额、计日工价款及专业工程暂估价。"}, {"num": 21, "type": "single", "question": "根据《标准施工招标文件》，当合同履行期间出现工程变更时，该变更\n在已标价工程量清单中无适用或类似子目的单价参考的，其变更估价正确的方式\n是（ ）。", "options": {"A": "按照成本加适当利润的原则，由发包人确定变更单价", "B": "按照成本加管理费的原则，由合同当事人协商确定变更工作的单价", "C": "按照成本加利润的原则，由监理人和当事人商定或确定变更工作的单价", "D": "根据成本加适当利润的原则，由监理人确定新的变更单价"}, "answer": ["C"], "analysis": "本题考查的是变更估价原则。除专用合同条款另有约定 外，因变更引起的价格调整按以下原则处理： （1）已标价工程量清单中有适用于变更工作的子目的，采用该子目的单价； （2）已标价工程量清单中无适用于变更工作的子目，但有类似子目的，可在 合理范围内参照类似子目的单价，由监理人和合同当事人商定或确定变更工作的 单价； （3）已标价工程量清单中无适用或类似子目的单价，可按照成本加利润的原 则，由监理人和合同当事人商定或确定变更工作的单价。"}, {"num": 22, "type": "single", "question": "根据《标准施工总承包招标文件》中的《合同条款及格式》，下列文件\n中，属于设计施工总承包合同组成文件的是（ ）。", "options": {"A": "工程量清单", "B": "发包人要求", "C": "单位分析表", "D": "发包人建议"}, "answer": ["B"], "analysis": "本题考查的是设计施工总承包合同文件的组成。设计施 工总承包合同文件包括：合同协议书、中标通知书、投标函及投标函附录、专用 合同条款、通用合同条款、发包人要求、承包人建议书、价格清单及组成设计施 工总承包合同的其他文件。与施工合同不同的是，设计施工总承包合同增加了发 包人要求和承包人建议书两项内容，并将已标价工程量清单调整为价格清单。"}, {"num": 23, "type": "single", "question": "根据《建设工程施工劳务分包合同（示范文本）》，关于工时及工程量\n确认的说法，正确的是（ ）。", "options": {"A": "按确定的工时计算劳务报酬的，由劳务分包人按月将提供劳务人数报工程承包人，由工程承包人确认", "B": "按确认的工程量计算劳务报酬的，由劳务分包人在完工后将完成的工程量报工程承包人，由工程承包人确认", "C": "对劳务分包人未经工程承包人认可，超出设计图纸范围的工程量，工程承包人应按实际计量", "D": "因劳务分包人原因造成返工的工程量，工程承包人不予计量"}, "answer": ["D"], "analysis": "本题考查的是工时及工程量的确认。按确定的工时计算 劳务报酬的，由劳务分包人每日将提供劳务人数报工程承包人，由工程承包人确 认。按确认的工程量计算劳务报酬的，由劳务分包人按月（或旬、日）将完成的 工程量报工程承包人，由工程承包人确认。对劳务分包人未经工程承包人认可， 超出设计图纸范围和因劳务分包人原因造成返工的工程量，工程承包人不予计 量。"}, {"num": 24, "type": "single", "question": "某建筑工程，业主投保了建筑工程一切险。工程竣工移交后发生地震，\n造成部分建筑物损坏，业主向保险公司提出索赔。则应由（ ）。", "options": {"A": "保险公司承担全部损失", "B": "保险公司承担除外责任以外的全部损失", "C": "业主自行承担全部损失", "D": "业主和保险公司协商分担损失"}, "answer": ["C"], "analysis": "本题考查的是工程一切险。建筑工程一切险采用的是工 期保险单，即保险期限是从投保工程动工之日起直至工程验收之日止，具体时间 由投保人与保险人协商确定。"}, {"num": 25, "type": "single", "question": "作为绿色策划的主要内容，绿色设计策划应明确的内容是（ ）。", "options": {"A": "绿色建造效果评估内容及方式", "B": "绿色建造目标及实施路径", "C": "绿色建造全过程数字化技术应用方式", "D": "绿色建造各参与方协同工作机制"}, "answer": ["B"], "analysis": "选项A属于绿色交付策划；选项CD错误，属于BIM环节。"}, {"num": 26, "type": "single", "question": "建设工程招标投标过程中，投标保证金将被没收的情形是（ ）。", "options": {"A": "投标人的投标报价明显低于其实际成本", "B": "投标人的资格文件中有虚假材料并导致废标", "C": "投标人在投标有效期内要求撤销其投标文件", "D": "投标人向招标人提出修改招标文件的要求"}, "answer": ["C"], "analysis": "投标截止后投标人撤销投标文件的，招标人可以不退还投 标保证金。"}, {"num": 27, "type": "single", "question": "在工程建设过程中，属于影响工程进度的组织管理因素是（ ）。", "options": {"A": "不合理的施工方案", "B": "不明的水文气象条件", "C": "向有关部门提出各种申请审批手续的延误", "D": "设计内容不完善，规范应用不恰当"}, "answer": ["C"], "analysis": "本题考查的是工程进度影响因素。选项 A 属于施工技 术因素，选项 B 属于自然环境因素，选项 D 属于勘察设计因素。"}, {"num": 28, "type": "single", "question": "在建设单位的计划系统中，根据初步设计中确立的建设工期和工艺流程，\n具体安排单位工程的开工日期和竣工日期的计划，称为（ ）。", "options": {"A": "工程项目总进度计划", "B": "工程项目前期工作计划", "C": "工程项目年度计划", "D": "工程项目进度平衡计划"}, "answer": ["A"], "analysis": "工程项目总进度计划是根据初步设计中确定的建设工期 和工艺流程，具体安排单位工程开工日期和竣工日期。"}, {"num": 29, "type": "single", "question": "工程项目组织依次施工的特点是（ ）。", "options": {"A": "能充分利用工作面进行施工，工期短", "B": "能由一个工作队完成全部工作任务，有利于专业化作业", "C": "单位时间内利用的施工机具少，有利于调配施工机具", "D": "专业工作队连续施工，有利于最大限度地搭接施工"}, "answer": ["C"], "analysis": "本题考查的是流水施工特点。选项 A 是平行施工的特 点，选项 B，依次施工不能实现专业化施工，选项 D，专业工作队不能连续作 业，有时间间歇。"}, {"num": 30, "type": "single", "question": "某项目组成甲、乙、丙、丁共 4 个专业队在 5 个段上进行非节奏流水\n施工，各队的流水节拍分别是：甲队为 3、5、3、2、2 周，乙队为 2、3、1、4、\n5 周，丙队为 4、1、3、2、5 周，丁队为 5、3、4、2、1 周，该项目总工期为\n（ ）周。", "options": {"A": "31", "B": "30", "C": "26", "D": "24"}, "answer": ["A"], "analysis": "本题考查的是流水施工的基本组织方式。在非节奏流水 施工中，通常采用累加数列错位相减取大差法计算流水步距。用累加数列求得： K 甲乙=7 周，K 乙丙=5 周，K丙丁=4 周，T=7+5+4+5+3+4+2+1=31 周。"}, {"num": 31, "type": "single", "question": "建设工程（ ）阶段主要是确定建设工程应达到的质量目标及水平。", "options": {"A": "投资决策", "B": "勘察设计", "C": "施工", "D": "保修"}, "answer": ["A"], "analysis": "本题考查的是工程质量形成过程。建设工程投资决策阶 段主要是确定建设工程应达到的质量目标及水平。"}, {"num": 32, "type": "single", "question": "关于工程项目质量控制体系的说法，正确的是（ ）。", "options": {"A": "涉及工程项目实施中所有的质量责任主体", "B": "目的是用于建筑业企业的质量管理", "C": "其控制目标是建筑业企业的质量管理目标", "D": "体系有效性需要进行第三方审核认证"}, "answer": ["A"], "analysis": "本题考查的是工程质量管理体系的特点。工程质量管理 体系是以工程项目为对象，由工程项目实施的总组织者负责建立的面向项目对象 开展质量控制的工作体系。工程质量管理体系涉及工程项目实施过程所有的质量 责任主体，是一次性的质量工作体系，工程质量管理体系的有效性一般由项目管 理的总组织者进行自我评价与诊断，不需进行第三方认证。"}, {"num": 33, "type": "single", "question": "工程质量控制体系的建立过程包括：① 分析质量管理界面；② 确立质\n量责任的网络架构；③ 制定质量管理制度；④ 编制工程质量计划。其正确的工\n作步骤是（ ）。", "options": {"A": "②→③→①→④", "B": "①→②→③→④", "C": "②→①→③→④", "D": "①→③→②→④"}, "answer": ["A"], "analysis": "本题考查的是工程质量管理体系的建立程序。 工程质量管理体系的建立过程，一般可按下列程序进行： （1）确立工程质量责任的网络架构。 （2）制定工程质量管理制度。 （3）分析工程质量管理界面。 （4）编制工程质量计划。"}, {"num": 34, "type": "single", "question": "由不同班组生产的同一种产品组成一个批，在这种情况下，考虑各班组\n生产的产品质量可能有波动，为了取得有代表性的样本，应采用（ ）检验方法。", "options": {"A": "分层随机抽样", "B": "系统随机抽样", "C": "分级随机抽样", "D": "整群随机抽样"}, "answer": ["A"], "analysis": "本题考查的是施工质量抽样检验方法。分层随机抽样： 将总体分割成互不重叠的子总体（层），每层中按独立给定的样本量进行简单随 机抽样，可以获得有代表性的样本。"}, {"num": 35, "type": "single", "question": "工程质量统计分析方法中，将调查收集的原始数据根据不同的目的和要\n求，按某一性质进行分组整理的分析方法是（ ）。", "options": {"A": "调查表法", "B": "分层法", "C": "排列图法", "D": "控制图法"}, "answer": ["B"], "analysis": "本题考查的是工程质量统计分析方法。分层法又叫分类 法，是将调查收集的原始数据，根据不同的目的和要求，按某一性质进行分组、 整理的分析方法。"}, {"num": 36, "type": "single", "question": "某建筑施工企业安全生产费用情况为：年初结余 80 万元，当年提取 750\n万元，当年实际支出 900 万元。该企业对于当年安全生产费用赤字的正确处理\n方式是（ ）。", "options": {"A": "当年末补提安全生产费用 70 万元", "B": "当年末从企业公积金中弥补亏损 70 万元", "C": "来年每月多提取安全生产费用 6 万元左右", "D": "来年多提取安全生产费用 150 万元"}, "answer": ["A"], "analysis": "首先计算安全生产费用收支情况： 当 年 可 使 用 的 安 全 生 产 费 用 总 额 = 年 初 结 余 + 当 年 提 取 ， 即 80+750=830 万元。 当年实际支出 900 万元，那么赤字（缺口）为 900−830=70 万元 。 然后依据相关规定： 企业安全生产费用出现赤字（当年计提加上年初结余小于年度实际支出）时， 应当于年末补提企业安全生产费用 ，所以需补提 70 万元，答案选 A 。 选项 B，从企业公积金弥补亏损不符合安全生产费用赤字的处理规定；选项 C、D，来年再调整提取的方式不符合 “出现赤字当年末补提” 的要求 。"}, {"num": 37, "type": "single", "question": "环境监测具有的特征不包含（ ）。", "options": {"A": "环节构成的系统性", "B": "环境形成的独特性", "C": "环境状态随时间变化的时序性", "D": "监测对象和手段的综合性"}, "answer": ["B"], "analysis": "监测具有环节构成的系统性，监测对象和监测手段的综合性，环境状态随时 间变化的时序性特征。"}, {"num": 38, "type": "single", "question": "施工企业应建立安全风险分级管控和隐患排查治理双重预防机制。针对\n项目重大安全风险填写的清单汇总造册后,应报告的主管部门是（ ）。", "options": {"A": "项目属地负有安全生产监督管理职责的部门", "B": "项目属地县级以上建设行政主管部门", "C": "企业注册地负有安全生产监督管理职责的部门", "D": "建设单位所在地县级以上建设行政主管部门"}, "answer": ["A"], "analysis": "重大安全风险应填写清单、汇总造册,按照职责范围报告 属地负有安全生产监督管理职责的部门。"}, {"num": 39, "type": "single", "question": "某装饰工程，计划 2025 年 2月底预计完成墙面装饰面积 3000㎡，预算\n单价 120 元 /㎡ 。施工至 2025 年 2 月底时，实际完成墙面装饰面积 3800㎡，\n实际单价 125 元 /㎡ 。用挣值法分析，该工程 2 月底的进度绩效指数是（ ）。", "options": {"A": "0.97", "B": "1.03", "C": "0.95", "D": "1.27"}, "answer": ["D"], "analysis": "进度绩效指数（SPI）=BCWP/BCWS=（3800*120）/（3000*120） =1.27"}, {"num": 40, "type": "single", "question": "施工现场人员受到物体打击造成伤害事故来源于高处物体坠落及物体飞\n溅，其主要危险因素有（）。", "options": {"A": "高处作业面层未设置挡脚板", "B": "土方未按规定放坡", "C": "作业面脚手架未铺满", "D": "大型机械设备基础不牢固引发倾覆"}, "answer": ["A"], "analysis": "施工现场人员受到物体打击造成伤害事故来源于高处物体坠落及物体飞溅， 主要危险部位和施工过程有：高处作业面层，高处作业通道，垂直运输过程，吊 装工艺过程，立体交叉作业，爆破作业、倾覆坍塌和自然灾害引发物体坠落或飞 溅等。主要危险因素有：高处作业面层工具、材料放置不当或无防坠落措施，高 处作业面层未设置挡脚板 ，水平防护及立面防护不严密等。"}, {"num": 41, "type": "single", "question": "（）侧重于风险评价，该方法用与风险有关的三种因素指标值的乘积来\n评价操作人员伤亡风险的大小", "options": {"A": "安全检查表", "B": "危险与可操作性", "C": "LEC评价法", "D": "事故树"}, "answer": ["C"], "analysis": "LEC 评价法。LEC 评价法侧重于风险评价，该方法用与 风险有关的三种因素指标值的乘积来评价操作人员伤亡风险的大小。"}, {"num": 42, "type": "single", "question": "下列施工现场危险源中,属于第一类危险源的是（ ）。", "options": {"A": "施工现场在用变电站", "B": "缺乏防护装置的加工机具", "C": "堆码过高的建筑材料", "D": "施工现场受限的作业空间"}, "answer": ["A"], "analysis": "第一类危险源是指施工现场或施工生产过程中存在的,可 能发生意外释放能量(机械能、电能、势能、化学能、热能等)的根源,包括施工现 场或施工生产过程中各种能量或危险物质。"}, {"num": 43, "type": "single", "question": "工程设计是项目管理范围的具体体现，是决策之后影响工程成本最重要\n的阶段。下列关于工程设计的说法，错误的是（）。", "options": {"A": "工程设计通常分为初步设计、技术设计和施工图设计三个阶段", "B": "对于技术上复杂而又缺乏设计经验的项目，可按 “三阶段设计” 进行", "C": "工程设计对工程成本的影响主要通过设计标准、设计方案及设计质量方面", "D": "对于特殊的大型项目，事先要进行总体设计"}, "answer": ["A"], "analysis": "工程设计通常分为初步设计和施工图设计两个阶段，称为 “两阶段设计”；对于技术上复杂而又缺乏设计经验的项目，可按初步设计、技术 设计和施工图设计三个阶段进行，称为 “三阶段设计”。故选 A。"}, {"num": 44, "type": "single", "question": "下列关于对施工成本影响的说法，错误的是（）。", "options": {"A": "高技能工人通常薪酬要求更高，会影响施工成本", "B": "低质量的施工会降低施工成本", "C": "现场管理能力高低直接关系到施工成本", "D": "间接成本会随着工期的缩短而减少"}, "answer": ["B"], "analysis": "选项 A 正确，高技能工人通常薪酬要求更高，因为他们 能够提供更高质量的工作，这会影响施工成本。选项 B 错误，施工质量不达标 或低质量将增加修复和重建成本、返工和修正成本、监测和测试费用、低效和浪 费成本、维护和修理成本，以及客户满意度和声誉成本。选项 C 正确，现场管 理能力高低直接关系到施工成本，现场管理能力低，容易引起返工、返修、材料 浪费、工人窝工、机械闲置等现象，导致施工成本增加。选项 D 正确，施工的 直接成本会随着工期的缩短而增加，当压缩工期时，会投入必要的相关费用，主 要表现为措施性费用的投入；间接成本会随着工期的缩短而减少。故选 B。"}, {"num": 45, "type": "single", "question": "编制施工项目实施性成本计划的依据是（）。", "options": {"A": "项目投标报价", "B": "项目所在地造价信息", "C": "项目实施方案", "D": "施工图预算"}, "answer": ["C"], "analysis": "实施性成本计划是指在工程项目施工准备阶段，以项目实 施方案为依据，以落实项目经理责任目标为出发点，根据企业施工定额编制的施 工成本计划。故选 C。"}, {"num": 46, "type": "single", "question": "下列关于施工责任成本的说法，错误的是（）。", "options": {"A": "中标后，投标负责人组织对编制、审核标价分离相关人员进行投标交底", "B": "一般由项目经理部组织进行标价分离、完成施工成本测算，协调相关部门编制施工成本降低率", "C": "技术部门配合完成施工方案、周转工具用量、机械设备配置的合理化及费用测算", "D": "人力资源部门配合完成项目管理人员配置及岗位薪酬标准测算"}, "answer": ["B"], "analysis": "一般由商务部门组织进行标价分离、完成施工成本测算， 协调相关部门编制施工成本降低率。故选 B。"}, {"num": 47, "type": "single", "question": "下列关于施工责任成本的说法，正确的是（）。", "options": {"A": "施工成本是在既定的市场环境下，根据企业管理水平和管理特点，按企业费用支出标准、资源市场价格信息和工程实际情况，测算的项目各项费用总和", "B": "责任成本具有可核算性、可预计性、可计量性、可控制性 4 个条件", "C": "商务部门配合完成项目管理费、规费及各项费用标准测算，完成施工责任成本分解", "D": "施工责任成本是以责任中心为对象来进行归集的可控成本，将企业成本管理中的经济责任进行明确划分，体现出 “分级控制” 与 “责权利一体” 的现代企业管理理念"}, "answer": ["D"], "analysis": "选项 A 错误，预算成本是在既定的市场环境下，根据企 业管理水平和管理特点，按企业费用支出标准、资源市场价格信息和工程实际情 况，测算的项目各项费用总和。选项 B 错误，责任成本具有可考核性、可计量 性、可预计性、可控制性 4 个条件。选项 C 错误，财务部门配合完成项目管理 费、规费及各项费用标准测算。标价分离完成后，根据项目综合情况，施工单位 管理部门与施工项目经理共同确认标价分离、成本降低率，商务部门完成施工责 任成本分解。故选 D。"}, {"num": 48, "type": "single", "question": "下列成本管理措施中，属于合同措施的是（）。", "options": {"A": "编制科学合理的成本计划", "B": "在项目实施过程中寻找索赔机会", "C": "对成本管理目标进行风险分析", "D": "对不同的技术方案进行比选"}, "answer": ["B"], "analysis": "选项 A 属于组织措施。选项 C 属于经济措施。选项 D 属 于技术措施。故选 B。"}, {"num": 49, "type": "single", "question": "工程施工成本控制中，进行偏差分析的一个重要目的是（）。", "options": {"A": "发现施工成本是否已超支", "B": "找出引起偏差的原因", "C": "采取纠正费用偏差的措施", "D": "估计完成项目所需的总费用"}, "answer": ["B"], "analysis": "偏差分析的一个重要目的就是要找出引起偏差的原因，从 而采取有针对性的措施，减少或避免类似问题再次发生。故选B。"}, {"num": 50, "type": "single", "question": "某项目计划工作量为 200 m³，计划价格是 430 元 /m³，计划损耗率是\n4%；实际工作量为 270 m³，实际价格为 480 元 /m³，实际损耗率为 3%，因为\n工作量的变化导致成本的变化是（）元。", "options": {"A": "30 000", "B": "31 304", "C": "36 063", "D": "34 608"}, "answer": ["B"], "analysis": "以目标数 ( 200×430×(1 + 4%) = 89440 )（元）为分析替代 的基础。替代产量因素，以 270 替代 200，( 270×430×(1 + 4%) = 120744 )（元）。 替代与目标数的差额为 ( 120744 - 89440 = 31304 )（元）。故选 B。"}, {"num": 51, "type": "single", "question": "施工成本分析的基本方法中，为了分析影响目标完成的积极因素和消极\n因素可通过（）的方法来实现。", "options": {"A": "将实际指标与目标指标对比", "B": "将本期实际指标与上期实际指标对比", "C": "与本行业平均水平对比", "D": "将两个性质不同而且相关的指标进行对比"}, "answer": ["A"], "analysis": "将实际指标与目标指标对比，以此检查目标完成情况，分 析影响目标完成的积极因素和消极因素，以便及时采取措施，保证成本目标的实 现。故选A。"}, {"num": 52, "type": "single", "question": "企业使用平衡积分卡进行成本管理绩效考核时，应从（）个维度来设定\n适当的指标。", "options": {"A": "三", "B": "四", "C": "五", "D": "六"}, "answer": ["B"], "analysis": "企业可以结合平衡积分卡的四个维度来设定适当的指标： ①财务绩效指标；②客户满意度指标；③内部流程效率指标；④学习与成长 方面的指标。故选B。"}, {"num": 53, "type": "single", "question": "下列关于项目经理对所属各部门、各施工队和班组考核的说法，错误的\n是（）。", "options": {"A": "对各部门的考核内容不包括本岗位责任成本的完成情况", "B": "对各施工队的考核内容包括专业作业合同以外的补充收费情况", "C": "对各班组的考核内容包括以分部分项工程成本作为班组的责任成本", "D": "对各班组的考核内容包括以施工任务单和限额领料单的结算资料为依据"}, "answer": ["A"], "analysis": "项目经理对各部门的考核内容：本部门、本岗位责任成本 的完成情况；本部门、本岗位成本管理责任的执行情况。故选A。"}, {"num": 54, "type": "single", "question": "下列关于综合成本分析方法的说法，正确的是（）。", "options": {"A": "项目年度成本分析的重点是针对下一年度的施工进展情况制定成本计划", "B": "月度成本分析的依据是当月的成本报表", "C": "企业年度成本要求一年结算一次，可将部分成本转入下一个年度", "D": "单位工程竣工成本分析是对预算成本、目标成本、实际成本的比较"}, "answer": ["B"], "analysis": "选项A错误，项目年度成本分析的重点是针对下一年度的 施工进展情况制定切实可行的成本管理措施。选项C错误，企业年度成本要求一 年结算一次，不得将本年成本转入下一年度。选项D错误，分部分项工程成本分 析的方法是进行预算成本、目标成本、实际成本的“三算”对比。故选B。"}, {"num": 55, "type": "single", "question": "下列关于360反馈法特点的说法，错误的是（）。", "options": {"A": "360反馈法涵盖了全方位、多角度的考核，能避免个人偏见等主观因素的影响，使考核结果更全面、公正", "B": "360反馈法多为定量指标，考核的主观性不强，不易沦为 “人缘考核”", "C": "360反馈法可能由于沟通不到位，导致企业中形成紧张和猜疑的气氛，影响员工的工作积极性和员工关系", "D": "360反馈法中部门员工相互监督、相互考评，促使员工日常要处理好各级关系，增强团队合作意识"}, "answer": ["B"], "analysis": "360反馈法多为定性指标，考核的主观性较强，容易沦为“人 缘考核”，导致考核结果和实际表现不一致。故选B。"}, {"num": 56, "type": "single", "question": "轨迹交叉理论认为人的不安全行为与物的不安全状态是事故发生的直接\n原因。下列不属于人的因素运动轨迹的是（）。", "options": {"A": "生理、心理缺陷", "B": "社会环境、企业管理上的缺陷", "C": "设计上的缺陷", "D": "后天的身体缺陷"}, "answer": ["C"], "analysis": "人的因素运动轨迹导致人的不安全行为（人的事件），其 运动轨迹是：生理、心理缺陷→社会环境、企业管理上的缺陷→后天的身体缺陷 →视、听、嗅、味、触五官能量分配上的差异→行为失误（不安全行为）。选项 C 属于物的因素运动轨迹。故选 C。"}, {"num": 57, "type": "single", "question": "下列不属于判断事故频发倾向者方法的是（）。", "options": {"A": "心理学测试", "B": "日常行为观察", "C": "事故发生次数是否符合非均等分布", "D": "进行问卷调查"}, "answer": ["D"], "analysis": "根据事故发生次数是否符合非均等分布，可以判断企业是 否存在事故频发倾向者。对于发生事故次数较多的人，可以通过一定的手段（如 心理学测试、日常行为观察）判别是否属于事故频发倾向者。故选D。"}, {"num": 58, "type": "single", "question": "下列关于安全生产费用提取和使用的说法，错误的是（）。", "options": {"A": "企业安全生产费用出现赤字的，应当于年末补提企业安全生产费用", "B": "企业安全生产费用年度结余资金结转下年度使用", "C": "竣工决算后结余的企业安全生产费用，应退回建设单位", "D": "企业从业人员发现报告事故隐患的奖励支出和职工薪酬，不得从企业安全生产费用中列支"}, "answer": ["D"], "analysis": "企业职工薪酬、福利不得从企业安全生产费用中支出。企 业从业人员发现报告事故隐患的奖励支出，应从企业安全生产费用中列支。故选 D"}, {"num": 59, "type": "single", "question": "下列关于企业在编制投标报价时对安全生产费用处理的做法，正确的是\n（）。", "options": {"A": "可以不包含企业安全生产费用", "B": "包含但不单列企业安全生产费用", "C": "包含并单列企业安全生产费用", "D": "竞标时可适当删减企业安全生产费用"}, "answer": ["C"], "analysis": "建设工程施工企业编制投标报价应包含并单列企业安全生 产费用，竞标时不得删减。故选C。"}, {"num": 60, "type": "single", "question": "攀登作业使用单梯时，梯面应与水平面成（）度夹角。", "options": {"A": "60", "B": "65", "C": "70", "D": "75"}, "answer": ["D"], "analysis": "攀登作业使用单梯时，梯面应与水平面成75°夹角，踏步 不得缺失，梯格间距宜为300mm，不得垫高使用。故选D。"}, {"num": 61, "type": "single", "question": "某县一建筑工地发生生产安全较大事故，则事故调查组应由（）负责组织。", "options": {"A": "事故发生地省级人民政府", "B": "事故发生地设区的市级人民政府", "C": "国务院应急管理部门", "D": "事故发生单位"}, "answer": ["B"], "analysis": "重大事故、较大事故、一般事故分别由事故发生地省级人 民政府、设区的市级人民政府、县级人民政府负责调查。故选B。"}, {"num": 62, "type": "single", "question": "下列关于应急预案的评审、论证的说法，正确的是（）。", "options": {"A": "与所评审应急预案的企业有利害关系的评审人员可参与评审", "B": "应急预案论证可通过推演的方式开展", "C": "评审内容仅包括应急预案体系设计的针对性和应急响应程序的合理性两项", "D": "参加应急预案评审的人员不包括有关安全生产及应急管理方面的专家"}, "answer": ["B"], "analysis": "选项A错误，评审人员与所评审应急预案的企业有利害关 系的，应当回避。选项C错误，评审内容包括风险评估和应急资源调查的全面性、 应急预案体系设计的针对性、应急组织体系的合理性、应急响应程序和措施的科 学性、应急保障措施的可行性、应急预案的衔接性。选项D错误，参加应急预案 评审的人员可包括有关安全生产及应急管理方面的、有现场处置经验的专家。故 选B。"}, {"num": 63, "type": "single", "question": "根据《建筑工程绿色施工规范》，下列属于设计单位在实施绿色施工时\n应承担的职责是（）。", "options": {"A": "审查绿色施工组织设计、绿色施工方案或绿色施工专项方案", "B": "建立建设工程绿色施工的协调机制", "C": "协助、支持、配合施工单位做好建设工程绿色施工的有关设计工作", "D": "对建设工程绿色施工承担监理责任"}, "answer": ["C"], "analysis": "选项AD属于工程监理单位绿色施工职责。选项B属于建设 单位绿色施工职责。故选C。"}, {"num": 64, "type": "single", "question": "绿色施工需遵循循环经济的 “3R” 原则，其中 “再循环” 是指（）。", "options": {"A": "通过输入端控制方式，用较少资源投入来达到既定的生产目的", "B": "通过过程端控制方式，将废物直接作为产品或经修复、翻新、再制造后继续作为产品使用", "C": "通过过程端控制方式，将废物的全部或部分作为其他产品的部件予以使用", "D": "通过输出端控制方式，将生产出来的物品在完成其使用功能后通过回收利用重新变成可用资源"}, "answer": ["D"], "analysis": "循环经济的“3R”原则中的“再循环”是指通过输出端控制方 式，将生产出来的物品在完成其使用功能后通过回收利用重新变成可用资源，减 少垃圾的产生。故选D。"}, {"num": 65, "type": "single", "question": "精益管理中的“益”体现在（）上。", "options": {"A": "质量", "B": "进度", "C": "成本", "D": "安全"}, "answer": ["C"], "analysis": "精益管理中的“精”体现在质量上，追求“精益求精”；“益” 体现在成本上，减少资源消耗和浪费，多产出效益。故选C。"}, {"num": 66, "type": "single", "question": "下列关于外国企业设立形式的说法，错误的是（）。", "options": {"A": "可以设立办事处", "B": "可以选择独资企业形式", "C": "可以成立有限责任公司", "D": "只能以股份有限公司形式存在"}, "answer": ["D"], "analysis": "外国企业设立形式包括公司代表处（办事处）、分公司、 独资企业、有限责任公司和股份有限公司等形式。故选D。"}, {"num": 67, "type": "single", "question": "下列属于国际工程承包风险中市场风险的是（）。", "options": {"A": "国际关系", "B": "经济结构", "C": "低价竞争", "D": "跨文化冲突"}, "answer": ["C"], "analysis": "选项A属于政治风险。选项B属于经济风险。选项D属于社 会风险。故选C。"}, {"num": 68, "type": "single", "question": "在 FIDIC 施工合同条件下，下列关于业主责任和义务的说法，错误的是\n（）。", "options": {"A": "向承包商及时提供信息、指示、同意、批准及发出通知", "B": "给予承包商现场占有权", "C": "协助承包商申办工程所在国法律要求的相关许可", "D": "为工程执行和竣工支付所有必需的费用"}, "answer": ["D"], "analysis": "业主并非负责支付工程执行和竣工的所有费用，而是在承 包商完成相应工作时按时支付工程款。故选 D。"}, {"num": 69, "type": "single", "question": "下列不可以作为 BIM 总协调方部门或单位的是（）。", "options": {"A": "建设单位相关部门", "B": "施工单位", "C": "第三方咨询机构", "D": "监理单位"}, "answer": ["D"], "analysis": "BIM总协调方可以为满足要求的建设单位相关部门、设计 单位、施工单位或第三方咨询机构。故选D。"}, {"num": 70, "type": "single", "question": "下列不属于 BIM 技术在工程施工安全管理中的应用的是（）。", "options": {"A": "施工安全教育", "B": "施工现场的安全措施布置", "C": "施工安全模拟", "D": "碰撞检测"}, "answer": ["D"], "analysis": "BIM 技术在工程施工安全管理中的应用主要有以下几方 面：①施工安全教育；②施工现场的安全措施布置；③施工安全模拟。故选 D。"}, {"num": 71, "type": "multi", "question": "下列工程开工时间的认定中，正确的有（ ）。", "options": {"A": "不需开槽的工程以正式开始打桩的时间作为开工时间", "B": "以施工方的临时工程开始施工时间作为开工时间", "C": "分期建设的工程以第一期工程的开工时间作为开工时间", "D": "土石方工程以平整场地开始时间作为开工时间", "E": "以设计文件规定的永久性工程第一次正式破土开槽时间作为开工时间"}, "answer": ["A", "E"], "analysis": "本题考查的是工程开工时间的含义。工程开工时间是 指该工程设计文件中规定的任何一项永久性工程第一次正式破土开槽开始施工 的时间。不需开槽的工程，正式开始打桩的时间就是开工时间。铁路、公路、水 库等需要进行大量土石方工程的，以正式开始进行土方、石方工程的时间作为正 式开工时间。"}, {"num": 72, "type": "multi", "question": "对建设单位而言，工程总承包模式的优点有（ ）。", "options": {"A": "有利于控制工程质量", "B": "便于提前确定工程造价", "C": "工程项目责任主体单一化", "D": "直接管理工程勘察设计和施工，指令易贯彻执行", "E": "有利于缩短建设周期"}, "answer": ["B", "C", "E"], "analysis": "本题考查的是工程总承包模式。工程总承包模式的优 点主要体现在以下几方面： ① 有利于缩短建设工期。 ② 便于建设单位提前确定工程造价。 ③ 使工程项目责任主体单一化。 ④ 可减轻建设单位合同管理的负担。"}, {"num": 73, "type": "multi", "question": "下列关于 CM 承包模式的说法，正确的有（ ）。", "options": {"A": "CM 承包模式下采用快速路径法施工", "B": "CM 单位直接与分包单位签订分包合同", "C": "CM 合同采用成本加酬金的计价方式", "D": "CM 单位与分包单位之间的合同价是保密的", "E": "CM 单位不赚取总包与分包之间的差价"}, "answer": ["A", "C", "E"], "analysis": "CM 模式的特点： ①采用快速路径法施工。 ②CM 单位有代理型和非代理型两种。代理型的 CM 单位不负责工程分包 的发包，与分包单位的合同由建设单位直接签订。 ③CM 合同采用成本加酬金方式。 ④CM 单位不赚取总包与分包之间的差价。"}, {"num": 74, "type": "multi", "question": "申请开工的工程具备（ ）条件的，总监理工程师方可在工程开工报审表\n签署同意开工的意见并报建设单位批准。", "options": {"A": "已完成设计交底和图纸会审", "B": "已签认施工组织设计", "C": "已审核分包单位资质", "D": "已开通进场道路及水、电、通信", "E": "签署的工程开工报审表已获建设单位批准"}, "answer": ["A", "B", "D"], "analysis": "本题考查的是签发工程开工令的条件。申请开工的工 程具备下列条件的，总监理工程师方可在工程开工报审表签署同意开工的意见并 报建设单位批准： （1）设计交底和图纸会审已完成； （2）施工组织设计已由总监理工程师签认； （3）施工单位现场质量、安全生产管理体系已建立，管理及施工人员已到位， 施工机械具备使用条件，主要工程材料已落实； （4）进场道路及水、电、通信等已满足开工要求。"}, {"num": 75, "type": "multi", "question": "下列关于价值驱动型项目管理应考虑的商业价值因素的说法中，不正确\n的是（ ）。", "options": {"A": "应同时将所有项目列为第一优先级", "B": "一组产生正现金流的项目，并不一定代表一家公司的总体最佳投资机会", "C": "一个组织在同一时间做太多的项目，并不能真正完成更多的工作", "D": "从商业角度看，一个预算超支的项目肯定是不划算的", "E": "从商业角度看，强迫项目团队接受不切实际的最后期限是极其有害的"}, "answer": ["A", "D"], "analysis": "本题考查的是价值交付。 价值驱动型项目管理应考虑以下商业价值因素： ① 从商业角度看，一个预算超支的项目有时却是划算的。 ② 一组产生正现金流的项目，并不一定代表一家公司的总体最佳投资机会。 ③ 从数学上讲，不可能同时将所有项目列为第一优先级。 ④ 一个组织在同一时间做太多的项目，并不能真正完成更多的工作。 ⑤ 从商业角度看，强迫项目团队接受不切实际的最后期限是极其有害的。"}, {"num": 76, "type": "multi", "question": "根据《标准施工招标文件》，评标委员会对投标报价进行的响应性评审\n内容有（ ）。", "options": {"A": "投标文件格式", "B": "投标有效期", "C": "投标保证金", "D": "已标价工程量清单", "E": "安全生产许可证"}, "answer": ["B", "C", "D"], "analysis": "根据《标准施工招标文件》，响应性评审内容包括投 标内容、工期、工程质量、投标有效期、投标保证金、权利义务、已标价工程量 清单、技术标准和要求等。"}, {"num": 77, "type": "multi", "question": "施工单位投标采用不平衡报价法时，可以适当提高报价的项目有（ ）。", "options": {"A": "工程内容说明不清楚的项目", "B": "暂定项目中必定要施工的不分标项目", "C": "单价与包干混合制合同中采用包干报价的项目", "D": "综合单价分析表中的材料费项目", "E": "预计开工后工程量会减少的项目"}, "answer": ["B", "C"], "analysis": "本题考查的是不平衡报价的适用情况。工程内容说明 不清楚的，可降低一些单价，在工程实施阶段通过索赔再寻求提高单价的机会， 故选项 A 错误。投标时可将综合单价分析表中的人工费及机械设备费报得高一 些，而材料费报得低一些，故选项 D 错误。对于将来工程量有可能减少的项目， 适当降低单价，故选项 E 错误。"}, {"num": 78, "type": "multi", "question": "关于监理人质量检查的说法，正确的是（ ）。", "options": {"A": "对承包人提供的材料和工程设备，承包人应会同监理人进行检验和交货验收", "B": "监理人对承包人的试验和检验结果有疑问，要求承包人重新检验时，由监理人和第三方检测机构共同进行", "C": "监理人对承包人已覆盖的隐蔽工程部分质量有疑问时，有权要求承包人对已覆盖的部位进行揭开重新检验", "D": "重新检验结果证明质量符合合同要求的，因此增加的费用由发包人和监理人共同承担", "E": "承包人自检确认的工程隐蔽部位具备覆盖条件后，监理人未按与承包人约定的时间进行检查且没有其他指示，承包人应自行完成覆盖工作，并拒绝监理人重新检查的要求"}, "answer": ["A", "C"], "analysis": "本题考查的是监理人质量检查。监理人对承包人的试 验和检验结果有疑问的，或为查清承包人试验和检验成果的可靠性要求承包人重 新试验和检验的，可按合同约定由监理人与承包人共同进行，故选项 B 错误。 经检验证明工程质量符合合同要求的，由发包人承担由此增加的费用和（或）工 期延误，并支付承包人合理利润，故选项 D 错误。监理人未按合同约定的时间 进行检查的，除监理人另有指示外，承包人可自行完成覆盖工作，并作相应记录 报送监理人，监理人应签字确认。监理人事后对检查记录有疑问的，可按合同约 定重新检查，故选项 E 错误。"}, {"num": 79, "type": "multi", "question": "关于承包人索赔的说法，正确的有（ ）。", "options": {"A": "承包人应在发出索赔意向通知书 28d 后，向监理人正式递交索赔报告", "B": "承包人应在知道或应当知道索赔事件发生后 28d 内，向监理人递交索赔意向通知书", "C": "在索赔事件影响结束后的 42d 内，承包人应向监理人递交最终索赔通知书", "D": "承包人接受索赔处理结果的，索赔款项应在竣工结算时进行支付", "E": "具有持续影响的索赔事件，承包人应按合理时间间隔持续递交延续索赔通知"}, "answer": ["B", "E"], "analysis": "本题考查的是承包人索赔。根据合同约定，承包人认 为有权得到追加付款和（或）延长工期的，应按以下程序向发包人提出索赔： （1）承包人应在知道或应当知道索赔事件发生后 28d 内，向监理人递交索 赔意向通知书，并说明发生索赔事件的事由，故选项 B 正确。 （2）承包人应在发出索赔意向通知书后 28d 内，向监理人正式递交索赔通 知书，故选项 A 错误。 （3）索赔事件具有连续影响的，承包人应按合理时间间隔继续递交延续索赔 通知，说明连续影响的实际情况和记录，列出累计的追加付款金额和（或）工期 延长天数，故选项E 正确。 （4）在索赔事件影响结束后的 28d 内，承包人应向监理人递交最终索赔通 知书，说明最终要求索赔的追加付款金额和延长的工期，并附必要的记录和证明 材料，故选项 C 错误。承包人接受索赔处理结果的，发包人应在作出索赔处理 结果答复后 28d 内完成赔付，故选项 D 错误。"}, {"num": 80, "type": "multi", "question": "根据《标准施工招标文件》，承包人可同时索赔工期和费用的情形有（ ）。", "options": {"A": "基准日后法律变化引起的价格调整", "B": "承包人遇到不利物质条件，监理人未发出指示", "C": "施工场地发掘文物、古迹", "D": "采取合同未约定的安全作业环境及安全施工措施", "E": "承包人遇到异常恶劣的气候条件"}, "answer": ["B", "C"], "analysis": "本题考查的是《标准施工招标文件》中合同条款规定 的可以合理补偿承包人索赔的条款。选项 A、D 只能索赔费用；选项 E 只能索 赔工期。"}, {"num": 81, "type": "multi", "question": "根据《建设工程施工专业分包合同（示范文本）》，下列情况视为分包\n人违约的有\n（ ）。", "options": {"A": "分包人与发包人或监理人发生直接工作联系", "B": "在分包合同施工中，发现技术要求存在错误、遗漏，通知承包人", "C": "分包人将其承包的分包工程转包或再分包", "D": "因分包人原因工程质量达不到约定的质量标准", "E": "为从事危险作业的职工办理意外伤害保险"}, "answer": ["A", "C", "D"], "analysis": "本题考查的是分包人违约。 当发生下列情况之一时，视为分包人违约： （1）分包人与发包人或监理人发生直接工作联系； （2）分包人将其承包的分包工程转包或再分包； （3）因分包人原因不能按照分包合同协议书约定的竣工日期或承包人同意顺 延的工期竣工； （4）因分包人原因工程质量达不到约定的质量标准； （5）分包人不履行分包合同义务或不按分包合同约定履行义务的其他情况。 选项 B、E 属于分包人的责任和义务。"}, {"num": 82, "type": "multi", "question": "采用缩短某项工作持续时间的方法来调整建设项目进度计划，说法正确\n的是（ ）。", "options": {"A": "改变非关键线路上有关工作的逻辑关系", "B": "优先压缩自由时差大的工作持续时间", "C": "有关工作的进度拖延时间不能超过总时差", "D": "可以采用增加资源投入措施", "E": "被压缩持续时间的工作位于超过计划工期的非关键线路上"}, "answer": ["D", "E"], "analysis": "本题考查的是施工进度计划调整方法及措施。通过压 缩某些工作的持续时间来缩短工期，这种调整方法的特点是不改变施工进度计划 中工作之间的逻辑关系，通过采取增加资源投入、提高劳动效率等措施，来缩短 某些工作的持续时间，以达到加快施工进度、缩短工期的目的。这些被压缩持续 时间的工作是位于关键线路和超过计划工期的非关键线路上的工作。同时，这些 工作又是其持续时间可被压缩的工作。这种施工进度计划的调整通常可利用工程 网络计划优化方法直接进行。"}, {"num": 83, "type": "multi", "question": "下列机械设备中，属于施工机具的有（ ）。", "options": {"A": "测量仪器", "B": "暖通设备", "C": "计量器具", "D": "智能控制设备", "E": "垂直运输设备"}, "answer": ["A", "C", "E"], "analysis": "本题考查的是机械设备。机械设备可分为两类： 一类是构成工程实体及配套的工艺设备和各类机具，如用于生产产品的设 备、电梯、智能控制及暖通设备等，这些机械设备作为工程实体的一部分，其质 量会直接影响工程质量； 另一类是指施工机具，即施工过程中使用的各类机械设备，如垂直运输设备， 各类操作工具、测量仪器和计量器具，各种施工安全设施等。"}, {"num": 84, "type": "multi", "question": "工程质量统计分析中，应用控制图分析判断生产过程是否处于稳定状态，\n可判断生产过程为异常的情形有（ ）。", "options": {"A": "点子几乎全部落在控制界线内", "B": "中心线一侧出现 7 点链", "C": "中心线两侧有 5 点连续上升", "D": "点子排列显示周期性变化", "E": "连续 11 点中有 10 点在同侧"}, "answer": ["B", "D", "E"], "analysis": "本题考查的是施工质量统计分析方法。选项 A 为稳 定状态的条件，故错误。选项 B，出现 7 点链，应判定工序异常，需采取处理 措施，故正确。选项 C，连续 7 点或 7点以上上升或下降排列才可判定生产过 程异常，故错误。选项 D，点子的排列显示周期性变化的现象时，即使所有点 子都在控制界限内，也应认为生产过程异常，故正确。选项E，连续 11 点中有 10 点在同侧，则可判定生产过程异常，故正确。"}, {"num": 85, "type": "multi", "question": "某工程施工过程中发生质量事故，造成10人死亡，轻伤140人，重伤10人，\n间接经济损失2.7亿，经查，该事故为施工单位施工员放低质量标准导致，则该\n事故为（ ）。", "options": {"A": "指导责任事故", "B": "操作责任事故", "C": "较大事故", "D": "重大事故", "E": "特别重大事故"}, "answer": ["A", "D"], "analysis": "施工员属于管理人员，所以为指导责任事故。本工程10 人死亡属于重大事故，轻伤、间接经济损失不计入；重伤、直接经济损失计入。"}, {"num": 86, "type": "multi", "question": "下列关于施工质量的影响的说法，正确的有（）。", "options": {"A": "质量问题会影响客户满意度和声誉", "B": "施工质量不达标不会增加监测和测试费用", "C": "施工低质量问题会增加修复和重建成本", "D": "质量问题可能导致施工过程的低效率和浪费", "E": "低质量的施工可能导致建筑物在使用过程中频繁需要维护和修理"}, "answer": ["A", "C", "D", "E"], "analysis": "选项 B 错误，施工质量不达标或低质量将增加修复 和重建成本、返工和修正成本、监测和测试费用、低效和浪费成本、维护和修理 成本，以及客户满意度和声誉成本。故选 ACDE。"}, {"num": 87, "type": "multi", "question": "某施工项目施工责任成本分解，以混凝土量盈利为控制目标，混凝土量\n盈利率大于或等于 2%，相关责任部门有（）。", "options": {"A": "技术部门", "B": "工程部门", "C": "商务部门", "D": "质量部门", "E": "项目管理机构"}, "answer": ["B", "C"], "analysis": "以混凝土量盈利为控制目标，混凝土量盈利率大于或等 于2%，相关责任部门是工程部门和商务部门，责任岗位是生产经理和商务经理。 故选BC。"}, {"num": 88, "type": "multi", "question": "下列关于施工过程中材料费控制的说法，正确的有（）。", "options": {"A": "可按工程部位实行限额领料", "B": "没有消耗定额的材料必须包干控制", "C": "材料价格可采用招标和询价方式控制", "D": "有消耗定额的材料采用限额领料制度", "E": "零星材料应实行计划管理并按指标控制"}, "answer": ["A", "C", "D"], "analysis": "选项B错误，对于没有消耗定额的材料，实行计划管理 和按指标控制的办法。选项E错误，零星材料实行包干控制。故选ACD。"}, {"num": 89, "type": "multi", "question": "下列关于目标管理法的说法，正确的有（）。", "options": {"A": "有助于绩效目标的制定、度量和分解", "B": "有利于树立员工的自我管理意识", "C": "目标设定难度低，但协调成本高", "D": "缺乏过程管理", "E": "适用于需要定量化考核的企业"}, "answer": ["A", "B", "D", "E"], "analysis": "选项C错误，目标管理法的目标设定难度大且协调成 本高，需要设定量化的目标，但目标的设定不仅面临内外变化的环境而且需要多 方沟通协商达成一致，增加了目标设定的难度和沟通成本。故选ABDE。"}, {"num": 90, "type": "multi", "question": "施工企业安全生产检查管理的要求包括（）。", "options": {"A": "安全检查的内容、形式、类型、标准、方法、频次", "B": "对存在问题和隐患的整改和跟踪复查", "C": "安全检查中发现的问题的分类记录和定期统计", "D": "安全生产法律法规、标准规范的推广和培训", "E": "建立并保存安全生产检查资料和记录"}, "answer": ["A", "B", "C", "E"], "analysis": "安全生产检查管理的要求：①安全生产检查管理应包 括安全检查的内容、形式、类型、标准、方法、频次、整改、复查等工作内容。 ②施工企业安全生产检查应配备必要的检查、测试器具，对存在的问题和隐患， 应定人、定时间、定措施组织整改，并应跟踪复查直至整改完毕。③施工企业 对安全检查中发现的问题，宜按隐患类别分类记录，定期统计，并应分析确定多 发和重大隐患类别，制定实施治理措施。④施工企业应建立并保存安全生产检 查资料和记录。故选ABCE。"}, {"num": 91, "type": "multi", "question": "下列属于易发生触电事故的主要危险源有（）。", "options": {"A": "配电线路", "B": "外电防护", "C": "现场照明", "D": "操作行为", "E": "无证上岗"}, "answer": ["A", "B", "C", "D"], "analysis": "易发生触电事故的主要危险源有：施工现场涉及用电 的机具、配电箱与开关箱、接地与接零保护系统、配电线路、外电防护、配电室 与配电装置、现场照明、电杆及支架、用电防护设施、个人使用安全防护品、操 作人员的技术熟练程度、操作行为。故选ABCD。"}, {"num": 92, "type": "multi", "question": "下列安全生产会议中，属于不定期安全生产会议的有（）。", "options": {"A": "月度安全生产例会", "B": "安全生产技术交底会", "C": "安全生产专题会", "D": "安全生产事故分析会", "E": "周安全生产例会"}, "answer": ["B", "C", "D"], "analysis": "不定期安全生产会议包括安全生产技术交底会、安全 生产专题会、安全生产事故分析会、安全生产现场会。故选BCD。"}, {"num": 93, "type": "multi", "question": "安全教育及培训常见的缺陷有（）。", "options": {"A": "未建立安全教育培训制度", "B": "施工管理人员、专职安全员未按规定进行培训和考核", "C": "现场管理人员未进行三级安全教育和考核", "D": "未明确具体安全教育内容", "E": "变换工种或采用新技术、新工艺、新设备、新材料施工时未进行安全教育"}, "answer": ["A", "B", "D", "E"], "analysis": "安全教育及培训常见缺陷：①未建立安全教育培训 制度；②施工管理人员、专职安全员未按规定进行培训和考核；③现场施工人 员未进行三级安全教育和考核；④未明确具体安全教育内容；⑤变换工种或采 用新技术、新工艺、新设备、新材料施工时未进行安全教育。故选ABDE。"}, {"num": 94, "type": "multi", "question": "专项施工方案的主要内容应包括（）。", "options": {"A": "施工计划", "B": "计算书", "C": "应急处置措施", "D": "施工平面图", "E": "施工质量保证措施"}, "answer": ["A", "B", "C"], "analysis": "专项施工方案的主要内容包括：①工程概况；②编制 依据；③施工计划；④施工工艺技术；⑤施工安全保证措施；⑥施工管理及 作业人员配备和分工；⑦验收要求；⑧应急处置措施；⑨计算书及相关施工图 纸。故选 ABC。"}, {"num": 95, "type": "multi", "question": "下列关于防高处坠落的安全技术措施的说法，正确的有（）。", "options": {"A": "使用单梯时，梯格间距宜为 300mm", "B": "悬空作业时，施工人员必须站在操作平台上作业", "C": "坠落高度基准面 2.5m 及以上进行临边作业时，应在临空一侧设置防护栏杆", "D": "当竖向洞口短边边长小于 600mm 时，应采取封堵措施", "E": "施工现场人员进出的通道口，应搭设安全防护棚"}, "answer": ["A", "B", "E"], "analysis": "选项 C 错误，坠落高度基准面 2m 及以上进行临边作 业时，应在临空一侧设置防护栏杆，并应采用密目式安全立网或工具式栏板封闭。 选项 D 错误，当竖向洞口短边边长小于 500mm 时，应采取封堵措施。故选 ABE。"}, {"num": 96, "type": "multi", "question": "绿色施工组织设计、绿色施工方案或绿色施工专项方案的编制应符合的规\n定有（）。", "options": {"A": "应考虑施工现场的自然与人文环境特点", "B": "应有减少资源浪费和环境污染的措施", "C": "应明确绿色施工的组织管理体系、技术要求和措施", "D": "应尽量利用可循环材料", "E": "应包含改善作业条件、提高劳动强度、节约人力资源等内容"}, "answer": ["A", "B", "C"], "analysis": "绿色施工组织设计、绿色施工方案或绿色施工专项方 案的编制应符合下列规定：①应考虑施工现场的自然与人文环境特点；②应有 减少资源浪费和环境污染的措施；③应明确绿色施工的组织管理体系、技术要 求和措施；④应选用先进的产品、技术、设备、施工工艺和方法，利用规划区 域内设施；⑤应包含改善作业条件、降低劳动强度、节约人力资源等内容。故 选 ABC。"}, {"num": 97, "type": "multi", "question": "下列关于施工现场文明施工具体要求的说法，正确的有（）。", "options": {"A": "工地地面常态处理", "B": "在易发生伤亡事故（或危险）处设置明显的、符合国家标准要求的安全警示标志牌", "C": "现场出入的大门应设有企业标识", "D": "围挡材料可采用彩色、定型钢板，砖、混凝土砌块等墙体", "E": "施工垃圾可采取覆盖措施运输"}, "answer": ["B", "C", "D"], "analysis": "选项A错误，工地地面应硬化处理。选项E错误，施工 垃圾必须采用相应容器或管道运输。故选BCD。"}, {"num": 98, "type": "multi", "question": "根据《国务院办公厅关于促进建筑业持续健康发展的意见》，下列关于\n加快建筑业企业 “走出去”，打造 “中国建造” 品牌提出的要求的说法，正确的\n有（）。", "options": {"A": "加强中外标准衔接", "B": "提高对外承包能力", "C": "加大政策扶持力度", "D": "积极促进投建营综合发展", "E": "积极提高国际合作水平"}, "answer": ["A", "B", "C"], "analysis": "加快建筑业企业 “走出去”，打造 “中国建造” 品牌的 要求：①加强中外标准衔接；②提高对外承包能力；③加大政策扶持力度。故 选 ABC。"}, {"num": 99, "type": "multi", "question": "汇率风险发生的基本要素有（）。", "options": {"A": "兑换机构", "B": "外币", "C": "政局稳定", "D": "时间", "E": "本币"}, "answer": ["B", "D", "E"], "analysis": "本币、外币和时间是汇率风险发生的三个基本要素， 中国企业需充分考虑收汇及汇率变动风险。故选 BDE。"}, {"num": 100, "type": "multi", "question": "根据 FIDIC《施工合同条件》（新红皮书），由于（）导致施工延误，\n承包商有权要求延长竣工时间。", "options": {"A": "承包商原因检验", "B": "发生工程变更", "C": "不可预见的外界条件", "D": "施工中遇到不能合理预见的异常不利气候", "E": "政府行为"}, "answer": ["B", "C", "D", "E"], "analysis": "选项 A 错误，非承包商原因检验导致施工的延误， 承包商有权要求延长竣工时间。故选 BCDE。"}];
+
+// ============================================================
+// STATE
+// ============================================================
+let state = {
+  mode: 'exam',        // 'exam' | 'redo'
+  questions: [],       // current question list (all or redo subset)
+  currentIndex: 0,
+  answers: {},         // { qNum: [selectedOptions] }
+  submitted: false,
+  timerSeconds: 0,
+  timerInterval: null,
+  paused: false,
+  analysisVisible: false,
+  redoQuestionNums: [],
+  _autoAdvanceTimer: null,
+};
+
+// ============================================================
+// MOBILE QUESTION NAV
+// ============================================================
+function buildMobileNav() {
+  const grid = document.getElementById('mobileNavGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  ALL_QUESTIONS.forEach(q => {
+    const dot = document.createElement('div');
+    dot.className = 'mobile-nav-dot';
+    dot.id = `mdot-${q.num}`;
+    dot.textContent = q.num;
+    dot.onclick = () => jumpToQuestion(q.num);
+    grid.appendChild(dot);
+  });
+}
+
+function updateMobileNavDots() {
+  ALL_QUESTIONS.forEach(q => {
+    const dot = document.getElementById(`mdot-${q.num}`);
+    if (!dot) return;
+    const currentQ = state.questions[state.currentIndex];
+    dot.className = 'mobile-nav-dot';
+    if (currentQ && currentQ.num === q.num) {
+      dot.classList.add('current');
+    } else if (state.submitted) {
+      const result = getQuestionResult(q);
+      if (result === 'correct') dot.classList.add('correct');
+      else if (result === 'wrong') dot.classList.add('wrong');
+      else if (result === 'partial') dot.classList.add('partial');
+      else dot.classList.add('answered');
+    } else if (state.answers[q.num]) {
+      dot.classList.add('answered');
+    }
+  });
+  const answeredCount = Object.keys(state.answers).length;
+  const el = document.getElementById('mobileAnswered');
+  if (el) el.textContent = answeredCount;
+}
+
+function toggleMobileNav() {
+  const grid = document.getElementById('mobileNavGrid');
+  if (!grid) return;
+  grid.classList.toggle('show');
+}
+
+// ============================================================
+// DYNAMIC TOPBAR PADDING
+// ============================================================
+function updateTopbarPadding() {
+  const topBar = document.getElementById('topBar');
+  const mainWrapper = document.querySelector('.main-wrapper');
+  if (topBar && mainWrapper) {
+    mainWrapper.style.paddingTop = topBar.offsetHeight + 'px';
+  }
+  // 根据屏幕宽度决定是否显示手机导航栏
+  const navBar = document.querySelector('.mobile-nav-bar');
+  if (navBar) {
+    navBar.style.display = window.innerWidth <= 768 ? 'block' : 'none';
+    // 在大屏隐藏时同时收起展开的题目网格
+    if (window.innerWidth > 768) {
+      const grid = document.getElementById('mobileNavGrid');
+      if (grid) grid.classList.remove('show');
+    }
+  }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.onload = function() {
+  state.questions = ALL_QUESTIONS;
+  buildSidebar();
+  buildMobileNav();
+
+  // 动态计算顶部栏高度，确保内容不被遮挡
+  updateTopbarPadding();
+  window.addEventListener('resize', updateTopbarPadding);
+
+  // Check localStorage for saved progress
+  const saved = loadProgress();
+  if (saved && !saved.submitted) {
+    const answeredCount = Object.keys(saved.answers).length;
+    const el = document.getElementById('resumeInfo');
+    el.innerHTML = `已作答 <strong>${answeredCount}</strong> / 100 题<br>
+      已用时 <strong>${formatTime(saved.timerSeconds)}</strong>`;
+    document.getElementById('resumeBanner').classList.add('active');
+  } else {
+    startTimer();
+    renderQuestion(0);
+  }
+};
+
+// ============================================================
+// TIMER
+// ============================================================
+function startTimer() {
+  if (state.timerInterval) clearInterval(state.timerInterval);
+  state.timerInterval = setInterval(() => {
+    if (!state.paused && !state.submitted) {
+      state.timerSeconds++;
+      updateTimerDisplay();
+      // Auto-save every 30s
+      if (state.timerSeconds % 30 === 0) saveProgress();
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  document.getElementById('timerDisplay').textContent = formatTime(state.timerSeconds);
+}
+
+function formatTime(s) {
+  const h = Math.floor(s / 3600).toString().padStart(2, '0');
+  const m = Math.floor((s % 3600) / 60).toString().padStart(2, '0');
+  const sec = (s % 60).toString().padStart(2, '0');
+  return `${h}:${m}:${sec}`;
+}
+
+function togglePause() {
+  state.paused = !state.paused;
+  const overlay = document.getElementById('pauseOverlay');
+  const btn = document.getElementById('pauseBtn');
+  const timer = document.getElementById('timerDisplay');
+  if (state.paused) {
+    overlay.classList.add('active');
+    btn.textContent = '▶ 继续';
+    timer.classList.add('paused');
+    saveProgress();
+  } else {
+    overlay.classList.remove('active');
+    btn.innerHTML = '⏸ 暂停';
+    timer.classList.remove('paused');
+  }
+}
+
+// ============================================================
+// LOCALSTORAGE PROGRESS
+// ============================================================
+const STORAGE_KEY = 'jianzao_exam_progress';
+
+function saveProgress() {
+  const data = {
+    answers: state.answers,
+    currentIndex: state.currentIndex,
+    timerSeconds: state.timerSeconds,
+    submitted: state.submitted,
+    mode: state.mode,
+    redoQuestionNums: state.redoQuestionNums,
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
+function clearProgress() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+function resumeProgress() {
+  const saved = loadProgress();
+  if (!saved) return;
+  state.answers = saved.answers || {};
+  state.currentIndex = saved.currentIndex || 0;
+  state.timerSeconds = saved.timerSeconds || 0;
+  state.submitted = saved.submitted || false;
+  state.mode = saved.mode || 'exam';
+  state.redoQuestionNums = saved.redoQuestionNums || [];
+
+  if (state.mode === 'redo' && state.redoQuestionNums.length > 0) {
+    state.questions = ALL_QUESTIONS.filter(q => state.redoQuestionNums.includes(q.num));
+    document.getElementById('redoBanner').style.display = 'flex';
+    document.getElementById('redoCount').textContent = state.questions.length;
+  } else {
+    state.questions = ALL_QUESTIONS;
+  }
+
+  document.getElementById('resumeBanner').classList.remove('active');
+  updateTimerDisplay();
+  startTimer();
+  buildSidebar();
+  updateSidebarDots();
+  renderQuestion(state.currentIndex);
+}
+
+function startFresh() {
+  clearProgress();
+  state.answers = {};
+  state.currentIndex = 0;
+  state.timerSeconds = 0;
+  state.submitted = false;
+  state.mode = 'exam';
+  state.questions = ALL_QUESTIONS;
+  document.getElementById('resumeBanner').classList.remove('active');
+  startTimer();
+  buildSidebar();
+  renderQuestion(0);
+}
+
+// ============================================================
+// SIDEBAR
+// ============================================================
+function buildSidebar() {
+  const sGrid = document.getElementById('singleGrid');
+  const mGrid = document.getElementById('multiGrid');
+  sGrid.innerHTML = '';
+  mGrid.innerHTML = '';
+  ALL_QUESTIONS.forEach(q => {
+    const dot = document.createElement('div');
+    dot.className = 'q-dot';
+    dot.id = `dot-${q.num}`;
+    dot.textContent = q.num;
+    dot.onclick = () => jumpToQuestion(q.num);
+    if (q.num <= 70) sGrid.appendChild(dot);
+    else mGrid.appendChild(dot);
+  });
+}
+
+function updateSidebarDots() {
+  ALL_QUESTIONS.forEach(q => {
+    const dot = document.getElementById(`dot-${q.num}`);
+    if (!dot) return;
+    const currentQ = state.questions[state.currentIndex];
+    dot.className = 'q-dot';
+    if (currentQ && currentQ.num === q.num) {
+      dot.classList.add('current');
+    } else if (state.submitted) {
+      const result = getQuestionResult(q);
+      if (result === 'correct') dot.classList.add('correct');
+      else if (result === 'wrong') dot.classList.add('wrong');
+      else if (result === 'partial') dot.classList.add('partial');
+      else dot.classList.add('answered'); // unanswered
+    } else if (state.answers[q.num]) {
+      dot.classList.add('answered');
+    }
+  });
+  updateMobileNavDots();
+}
+
+function jumpToQuestion(num) {
+  const idx = state.questions.findIndex(q => q.num === num);
+  if (idx >= 0) renderQuestion(idx);
+}
+
+// ============================================================
+// RENDER QUESTION
+// ============================================================
+function renderQuestion(idx) {
+  if (idx < 0 || idx >= state.questions.length) return;
+  state.currentIndex = idx;
+  state.analysisVisible = false;
+
+  const q = state.questions[idx];
+  const isMulti = q.type === 'multi';
+  const selectedOptions = state.answers[q.num] || [];
+
+  // Meta
+  document.getElementById('qNum').textContent = q.num;
+  const badge = document.getElementById('qTypeBadge');
+  badge.textContent = isMulti ? '多选题' : '单选题';
+  badge.className = 'q-type-badge ' + (isMulti ? 'multi' : 'single');
+  document.getElementById('qScoreBadge').textContent = isMulti ? '2分' : '1分';
+
+  // Question text
+  document.getElementById('questionText').textContent = q.question;
+
+  // Options
+  const optList = document.getElementById('optionsList');
+  optList.innerHTML = '';
+  Object.entries(q.options).forEach(([key, val]) => {
+    const item = document.createElement('div');
+    item.className = 'option-item';
+    item.id = `opt-${q.num}-${key}`;
+
+    const letter = document.createElement('div');
+    letter.className = 'option-letter';
+    letter.textContent = key;
+
+    const text = document.createElement('div');
+    text.className = 'option-text';
+    text.textContent = `${val}`;
+
+    item.appendChild(letter);
+    item.appendChild(text);
+
+    if (selectedOptions.includes(key)) {
+      item.classList.add('selected');
+    }
+
+    if (!state.submitted) {
+      item.onclick = () => selectOption(q, key, item);
+    } else {
+      // Show correct/wrong
+      applyResultStyle(item, key, q, selectedOptions);
+    }
+
+    optList.appendChild(item);
+  });
+
+  // Analysis box
+  const analysisBox = document.getElementById('analysisBox');
+  if (state.submitted) {
+    analysisBox.style.display = 'block';
+    showAnalysisContent(q, selectedOptions);
+    document.getElementById('showAnalysisBtn').style.display = 'none';
+  } else {
+    analysisBox.style.display = 'none';
+    document.getElementById('showAnalysisBtn').style.display = 'none';
+  }
+
+  // Progress
+  const answeredCount = Object.keys(state.answers).length;
+  const totalQ = ALL_QUESTIONS.length;
+  document.getElementById('currentNum').textContent = `${q.num}`;
+  document.getElementById('answeredCount').textContent = `已作答 ${answeredCount} 题`;
+  document.getElementById('progressFill').style.width = `${(answeredCount / totalQ) * 100}%`;
+  document.getElementById('progressText').children[0].innerHTML =
+    `第 <strong>${idx + 1}</strong> / ${state.questions.length} 题`;
+
+  // Nav buttons
+  document.getElementById('prevBtn').disabled = idx === 0;
+  const nextBtn = document.getElementById('nextBtn');
+  if (idx === state.questions.length - 1 && !state.submitted) {
+    nextBtn.textContent = '完成作答';
+    nextBtn.className = 'btn btn-success';
+    nextBtn.onclick = () => confirmSubmit();
+  } else {
+    nextBtn.textContent = '下一题 →';
+    nextBtn.className = 'btn btn-primary';
+    nextBtn.onclick = () => nextQuestion();
+  }
+
+  // Submit button in header
+  document.getElementById('submitBtn').style.display =
+    (!state.submitted && answeredCount > 0) ? 'inline-flex' : 'none';
+
+  // Sidebar
+  updateSidebarDots();
+
+  // Scroll to top
+  document.getElementById('contentArea').scrollTop = 0;
+  window.scrollTo(0, 0);
+}
+
+function applyResultStyle(item, key, q, selectedOptions) {
+  const isCorrect = q.answer.includes(key);
+  const isSelected = selectedOptions.includes(key);
+
+  if (isSelected && isCorrect) {
+    item.classList.add('correct-answer');
+  } else if (isSelected && !isCorrect) {
+    item.classList.add('wrong-answer');
+  } else if (!isSelected && isCorrect) {
+    item.classList.add('missed-answer');
+  }
+}
+
+// ============================================================
+// SELECT OPTION
+// ============================================================
+function selectOption(q, key, itemEl) {
+  if (state.submitted) return;
+  const isMulti = q.type === 'multi';
+  let selected = state.answers[q.num] ? [...state.answers[q.num]] : [];
+
+  if (isMulti) {
+    if (selected.includes(key)) {
+      selected = selected.filter(k => k !== key);
+      itemEl.classList.remove('selected');
+      itemEl.querySelector('.option-letter').style = '';
+    } else {
+      selected.push(key);
+      itemEl.classList.add('selected');
+    }
+  } else {
+    // Single: deselect all others
+    const allOpts = document.querySelectorAll(`[id^="opt-${q.num}-"]`);
+    allOpts.forEach(el => {
+      el.classList.remove('selected');
+    });
+    selected = [key];
+    itemEl.classList.add('selected');
+  }
+
+  if (selected.length === 0) {
+    delete state.answers[q.num];
+  } else {
+    state.answers[q.num] = selected;
+  }
+
+  // Update progress
+  const answeredCount = Object.keys(state.answers).length;
+  document.getElementById('answeredCount').textContent = `已作答 ${answeredCount} 题`;
+  document.getElementById('progressFill').style.width =
+    `${(answeredCount / ALL_QUESTIONS.length) * 100}%`;
+  document.getElementById('submitBtn').style.display =
+    answeredCount > 0 ? 'inline-flex' : 'none';
+
+  updateSidebarDots();
+
+  // Auto advance for single choice
+  if (!isMulti) {
+    state._autoAdvanceTimer = setTimeout(() => {
+      state._autoAdvanceTimer = null;
+      nextQuestion();
+    }, 500);
+  }
+}
+
+// ============================================================
+// NAV
+// ============================================================
+function prevQuestion() {
+  if (state._autoAdvanceTimer) {
+    clearTimeout(state._autoAdvanceTimer);
+    state._autoAdvanceTimer = null;
+  }
+  if (state.currentIndex > 0) renderQuestion(state.currentIndex - 1);
+}
+function nextQuestion() {
+  if (state.currentIndex < state.questions.length - 1)
+    renderQuestion(state.currentIndex + 1);
+}
+
+// ============================================================
+// SUBMIT
+// ============================================================
+function confirmSubmit() {
+  const answered = Object.keys(state.answers).length;
+  const total = ALL_QUESTIONS.length;
+  const unanswered = total - answered;
+  let msg = '';
+  if (unanswered > 0) {
+    msg = `还有 ${unanswered} 题未作答，确定要提交吗？`;
+  } else {
+    msg = '所有题目已作答，确定提交试卷？';
+  }
+  if (confirm(msg)) submitExam();
+}
+
+function submitExam() {
+  state.submitted = true;
+  clearInterval(state.timerInterval);
+
+  // Calculate scores
+  const result = calculateScore();
+
+  // Hide exam UI, show result
+  document.getElementById('contentArea').style.display = 'none';
+  document.getElementById('pauseBtn').style.display = 'none';
+  document.getElementById('submitBtn').style.display = 'none';
+  document.getElementById('resultPage').style.display = 'block';
+
+  document.getElementById('resultScore').textContent = result.total.toFixed(1);
+  document.getElementById('timeUsed').textContent = `用时 ${formatTime(state.timerSeconds)}`;
+  document.getElementById('stat-correct').textContent = result.correct;
+  document.getElementById('stat-wrong').textContent = result.wrong;
+  document.getElementById('stat-partial').textContent = result.partial;
+  document.getElementById('stat-unanswered').textContent = result.unanswered;
+
+  // Store redo list
+  state.redoQuestionNums = result.wrongNums.concat(result.partialNums);
+
+  clearProgress(); // clear saved progress after submit
+  updateSidebarDots();
+}
+
+// ============================================================
+// SCORING
+// ============================================================
+function calculateScore() {
+  let total = 0;
+  let correct = 0, wrong = 0, partial = 0, unanswered = 0;
+  let wrongNums = [], partialNums = [];
+
+  ALL_QUESTIONS.forEach(q => {
+    const selected = state.answers[q.num] || [];
+    if (selected.length === 0) {
+      unanswered++;
+      return;
+    }
+
+    const r = getQuestionResult(q);
+    if (r === 'correct') {
+      correct++;
+      total += q.type === 'single' ? 1 : 2;
+    } else if (r === 'partial') {
+      partial++;
+      const correctSelected = selected.filter(k => q.answer.includes(k));
+      total += correctSelected.length * 0.5;
+      partialNums.push(q.num);
+    } else {
+      wrong++;
+      wrongNums.push(q.num);
+    }
+  });
+
+  return { total, correct, wrong, partial, unanswered, wrongNums, partialNums };
+}
+
+function getQuestionResult(q) {
+  const selected = state.answers[q.num] || [];
+  if (selected.length === 0) return 'unanswered';
+  const correct = q.answer;
+
+  if (q.type === 'single') {
+    return selected[0] === correct[0] ? 'correct' : 'wrong';
+  } else {
+    // Multi: check for any wrong selection
+    const hasWrong = selected.some(k => !correct.includes(k));
+    if (hasWrong) return 'wrong';
+    const allCorrect = correct.every(k => selected.includes(k));
+    if (allCorrect) return 'correct';
+    return 'partial'; // no wrong, but missing some
+  }
+}
+
+// ============================================================
+// ANALYSIS
+// ============================================================
+function toggleAnalysis() {
+  state.analysisVisible = !state.analysisVisible;
+  const box = document.getElementById('analysisBox');
+  box.style.display = state.analysisVisible ? 'block' : 'none';
+  if (state.analysisVisible) {
+    const q = state.questions[state.currentIndex];
+    const selected = state.answers[q.num] || [];
+    showAnalysisContent(q, selected);
+  }
+}
+
+function showAnalysisContent(q, selected) {
+  const r = getQuestionResult(q);
+  const answerLine = document.getElementById('answerLine');
+  const analysisText = document.getElementById('analysisText');
+
+  let resultTag = '';
+  if (r === 'correct') resultTag = `<span class="ans-right">✓ 正确</span>`;
+  else if (r === 'partial') resultTag = `<span class="ans-partial">△ 少选得分</span>`;
+  else if (r === 'unanswered') resultTag = `<span style="color:var(--text-muted)">— 未作答</span>`;
+  else resultTag = `<span class="ans-wrong">✗ 错误</span>`;
+
+  answerLine.innerHTML =
+    `<span class="ans-correct">正确答案：${q.answer.join('')}</span>
+     &nbsp;&nbsp;
+     <span class="ans-your">你的选择：${selected.join('') || '—'}</span>
+     &nbsp;${resultTag}`;
+
+  analysisText.textContent = q.analysis;
+}
+
+// ============================================================
+// ERROR ANALYSIS
+// ============================================================
+function showErrorAnalysis() {
+  const section = document.getElementById('errorAnalysisSection');
+  section.style.display = section.style.display === 'none' ? 'block' : 'none';
+  if (section.style.display === 'none') return;
+
+  const list = document.getElementById('errorList');
+  list.innerHTML = '';
+
+  const errors = ALL_QUESTIONS.filter(q => {
+    const r = getQuestionResult(q);
+    return r === 'wrong' || r === 'partial' || r === 'unanswered';
+  });
+
+  document.getElementById('errorCountLabel').textContent = `共 ${errors.length} 题`;
+
+  if (errors.length === 0) {
+    list.innerHTML = '<p style="color:var(--success); text-align:center; padding:20px;">🎉 恭喜！全部答对！</p>';
+    return;
+  }
+
+  errors.forEach(q => {
+    const selected = state.answers[q.num] || [];
+    const r = getQuestionResult(q);
+
+    const item = document.createElement('div');
+    item.className = 'error-item';
+
+    let statusBadge = '';
+    if (r === 'partial') statusBadge = `<span class="partial-badge">少选</span>`;
+    else if (r === 'unanswered') statusBadge = `<span class="partial-badge" style="background:var(--bg-card);color:var(--text-muted);border:1px solid var(--border)">未答</span>`;
+
+    item.innerHTML = `
+      <div class="error-q-header">
+        <div class="error-q-num">${q.num}</div>
+        <div class="error-q-text">
+          <strong>[${q.type === 'multi' ? '多选' : '单选'}]</strong>${statusBadge}
+          ${q.question}
+        </div>
+      </div>
+      <div class="error-options" id="errOpts-${q.num}"></div>
+      <div class="error-analysis">
+        <strong>✓ 正确答案：${q.answer.join('')}</strong>　
+        <strong>你的选择：${selected.join('') || '—'}</strong><br><br>
+        ${q.analysis}
+      </div>
+    `;
+
+    list.appendChild(item);
+
+    const optsEl = document.getElementById(`errOpts-${q.num}`);
+    Object.entries(q.options).forEach(([key, val]) => {
+      const isCorrect = q.answer.includes(key);
+      const wasSelected = selected.includes(key);
+      const div = document.createElement('div');
+      div.className = 'error-opt';
+      if (isCorrect) div.classList.add('is-correct');
+      if (wasSelected && !isCorrect) div.classList.add('was-selected');
+      let icon = '';
+      if (isCorrect && wasSelected) icon = '✓';
+      else if (isCorrect) icon = '○';
+      else if (wasSelected) icon = '✗';
+      else icon = '·';
+      div.textContent = `${icon} ${key}. ${val}`;
+      optsEl.appendChild(div);
+    });
+  });
+}
+
+// ============================================================
+// REDO MODE
+// ============================================================
+function startRedoMode() {
+  const toRedo = ALL_QUESTIONS.filter(q => {
+    const r = getQuestionResult(q);
+    return r === 'wrong' || r === 'partial' || r === 'unanswered';
+  });
+
+  if (toRedo.length === 0) {
+    alert('没有需要重做的题目，全部答对了！');
+    return;
+  }
+
+  if (!confirm(`将重做 ${toRedo.length} 道错题，确定？`)) return;
+
+  // Reset answers for these questions only
+  toRedo.forEach(q => { delete state.answers[q.num]; });
+  state.redoQuestionNums = toRedo.map(q => q.num);
+  state.questions = toRedo;
+  state.currentIndex = 0;
+  state.submitted = false;
+  state.mode = 'redo';
+  state.timerSeconds = 0;
+  state.paused = false;
+
+  // Show exam UI
+  document.getElementById('contentArea').style.display = 'block';
+  document.getElementById('resultPage').style.display = 'none';
+  document.getElementById('pauseBtn').style.display = 'inline-flex';
+
+  // Show redo banner
+  document.getElementById('redoBanner').style.display = 'flex';
+  document.getElementById('redoCount').textContent = toRedo.length;
+
+  startTimer();
+  buildSidebar();
+  renderQuestion(0);
+}
+
+// ============================================================
+// RESTART
+// ============================================================
+function restartAll() {
+  if (!confirm('确定要重新开始全部题目吗？')) return;
+  clearProgress();
+  state = {
+    mode: 'exam',
+    questions: ALL_QUESTIONS,
+    currentIndex: 0,
+    answers: {},
+    submitted: false,
+    timerSeconds: 0,
+    timerInterval: null,
+    paused: false,
+    analysisVisible: false,
+    redoQuestionNums: [],
+  };
+  document.getElementById('contentArea').style.display = 'block';
+  document.getElementById('resultPage').style.display = 'none';
+  document.getElementById('pauseBtn').style.display = 'inline-flex';
+  document.getElementById('redoBanner').style.display = 'none';
+  document.getElementById('errorAnalysisSection').style.display = 'none';
+  startTimer();
+  buildSidebar();
+  renderQuestion(0);
+}
+
+// ============================================================
+// PAGE VISIBILITY (auto pause when tab hidden)
+// ============================================================
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && !state.paused && !state.submitted) {
+    saveProgress();
+  }
+});
+
+// Auto save before unload
+window.addEventListener('beforeunload', () => {
+  if (!state.submitted) saveProgress();
+});
+</script>
+</body>
+</html>
