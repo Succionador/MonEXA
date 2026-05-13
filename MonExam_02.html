@@ -610,9 +610,11 @@
 
     <!-- NAV BUTTONS -->
     <div class="nav-row">
-      <button class="btn btn-secondary" id="prevBtn" onclick="if(!this.disabled)prevQuestion()">← 上一题</button>
+      <button class="btn btn-secondary" id="prevBtn" onclick="prevQuestion()">← 上一题</button>
       <div class="nav-center">
         <button class="btn btn-secondary" onclick="toggleAnalysis()" id="showAnalysisBtn" style="display:none;">💡 查看解析</button>
+        <button class="btn btn-success" id="confirmBtn" onclick="confirmAnswer()" style="display:none;">✓ 确认答案</button>
+        <button class="btn btn-warning" id="endRedoBtn" onclick="endRedoMode()" style="display:none;">🏁 结束重做</button>
       </div>
       <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()">下一题 →</button>
     </div>
@@ -682,6 +684,7 @@ let state = {
   timerInterval: null,
   paused: false,
   analysisVisible: false,
+  confirmed: false,    // 是否已确认当前题答案
   redoQuestionNums: [],
   _autoAdvanceTimer: null,
 };
@@ -864,8 +867,10 @@ function resumeProgress() {
     state.questions = ALL_QUESTIONS.filter(q => state.redoQuestionNums.includes(q.num));
     document.getElementById('redoBanner').style.display = 'flex';
     document.getElementById('redoCount').textContent = state.questions.length;
+    document.getElementById('endRedoBtn').style.display = 'inline-flex';
   } else {
     state.questions = ALL_QUESTIONS;
+    document.getElementById('endRedoBtn').style.display = 'none';
   }
 
   document.getElementById('resumeBanner').classList.remove('active');
@@ -942,6 +947,7 @@ function renderQuestion(idx) {
   if (idx < 0 || idx >= state.questions.length) return;
   state.currentIndex = idx;
   state.analysisVisible = false;
+  state.confirmed = false;
 
   const q = state.questions[idx];
   const isMulti = q.type === 'multi';
@@ -980,7 +986,7 @@ function renderQuestion(idx) {
       item.classList.add('selected');
     }
 
-    if (!state.submitted) {
+    if (!state.submitted && !state.confirmed) {
       item.onclick = () => selectOption(q, key, item);
     } else {
       // Show correct/wrong
@@ -996,9 +1002,13 @@ function renderQuestion(idx) {
     analysisBox.style.display = 'block';
     showAnalysisContent(q, selectedOptions);
     document.getElementById('showAnalysisBtn').style.display = 'none';
+    document.getElementById('confirmBtn').style.display = 'none';
   } else {
     analysisBox.style.display = 'none';
     document.getElementById('showAnalysisBtn').style.display = 'none';
+    // 如果未选择选项，隐藏确认按钮；已选择则显示
+    const confirmBtn = document.getElementById('confirmBtn');
+    confirmBtn.style.display = selectedOptions.length > 0 ? 'inline-flex' : 'none';
   }
 
   // Progress
@@ -1011,7 +1021,6 @@ function renderQuestion(idx) {
     `第 <strong>${idx + 1}</strong> / ${state.questions.length} 题`;
 
   // Nav buttons
-  document.getElementById('prevBtn').disabled = idx === 0;
   const nextBtn = document.getElementById('nextBtn');
   if (idx === state.questions.length - 1 && !state.submitted) {
     nextBtn.textContent = '完成作答';
@@ -1091,23 +1100,53 @@ function selectOption(q, key, itemEl) {
 
   updateSidebarDots();
 
-  // Auto advance for single choice
-  if (!isMulti) {
-    state._autoAdvanceTimer = setTimeout(() => {
-      state._autoAdvanceTimer = null;
-      nextQuestion();
-    }, 500);
+  // 显示确认按钮（只要选择了选项就显示）
+  const confirmBtn = document.getElementById('confirmBtn');
+  if (selected.length > 0 && !state.confirmed) {
+    confirmBtn.style.display = 'inline-flex';
   }
+}
+
+// ============================================================
+// CONFIRM ANSWER
+// ============================================================
+function confirmAnswer() {
+  const q = state.questions[state.currentIndex];
+  if (!q || state.submitted) return;
+
+  const selected = state.answers[q.num] || [];
+  if (selected.length === 0) return;
+
+  state.confirmed = true;
+
+  // 隐藏确认按钮
+  document.getElementById('confirmBtn').style.display = 'none';
+
+  // 显示答案和解析
+  const analysisBox = document.getElementById('analysisBox');
+  analysisBox.style.display = 'block';
+  showAnalysisContent(q, selected);
+
+  // 对选项应用正确/错误样式
+  const optList = document.getElementById('optionsList');
+  Object.entries(q.options).forEach(([key, val]) => {
+    const item = document.getElementById(`opt-${q.num}-${key}`);
+    if (item) applyResultStyle(item, key, q, selected);
+  });
+
+  // 清除选中的高亮，改为结果样式
+  document.querySelectorAll(`[id^="opt-${q.num}-"]`).forEach(el => {
+    el.classList.remove('selected');
+  });
+
+  // 更新侧边栏
+  updateSidebarDots();
 }
 
 // ============================================================
 // NAV
 // ============================================================
 function prevQuestion() {
-  if (state._autoAdvanceTimer) {
-    clearTimeout(state._autoAdvanceTimer);
-    state._autoAdvanceTimer = null;
-  }
   if (state.currentIndex > 0) renderQuestion(state.currentIndex - 1);
 }
 function nextQuestion() {
@@ -1348,9 +1387,39 @@ function startRedoMode() {
   document.getElementById('redoBanner').style.display = 'flex';
   document.getElementById('redoCount').textContent = toRedo.length;
 
+  // Show end redo button
+  document.getElementById('endRedoBtn').style.display = 'inline-flex';
+
   startTimer();
   buildSidebar();
   renderQuestion(0);
+}
+
+function endRedoMode() {
+  if (!confirm('确定要结束错题重做吗？')) return;
+
+  // 回到结果页面
+  document.getElementById('contentArea').style.display = 'none';
+  document.getElementById('resultPage').style.display = 'block';
+  document.getElementById('pauseBtn').style.display = 'none';
+  document.getElementById('endRedoBtn').style.display = 'none';
+  document.getElementById('redoBanner').style.display = 'none';
+
+  // 重新计算分数并显示结果
+  const result = calculateScore();
+  document.getElementById('resultScore').textContent = result.total.toFixed(1);
+  document.getElementById('timeUsed').textContent = `用时 ${formatTime(state.timerSeconds)}`;
+  document.getElementById('stat-correct').textContent = result.correct;
+  document.getElementById('stat-wrong').textContent = result.wrong;
+  document.getElementById('stat-partial').textContent = result.partial;
+  document.getElementById('stat-unanswered').textContent = result.unanswered;
+
+  // 重置状态
+  state.mode = 'exam';
+  state.questions = ALL_QUESTIONS;
+  state.submitted = true;
+  clearInterval(state.timerInterval);
+  updateSidebarDots();
 }
 
 // ============================================================
@@ -1369,12 +1438,14 @@ function restartAll() {
     timerInterval: null,
     paused: false,
     analysisVisible: false,
+    confirmed: false,
     redoQuestionNums: [],
   };
   document.getElementById('contentArea').style.display = 'block';
   document.getElementById('resultPage').style.display = 'none';
   document.getElementById('pauseBtn').style.display = 'inline-flex';
   document.getElementById('redoBanner').style.display = 'none';
+  document.getElementById('endRedoBtn').style.display = 'none';
   document.getElementById('errorAnalysisSection').style.display = 'none';
   startTimer();
   buildSidebar();
